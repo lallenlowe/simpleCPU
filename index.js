@@ -18,11 +18,11 @@ const mainBus = {
 };
 
 const cpuRegisters = {
-  x: 0, // x register
-  y: 0, // y register
-  a: 0, // accumulator register
-  pc: 0, // program counter
-  sp: 0, // stack pointer
+  x: 0b00000000, // x register
+  y: 0b00000000, // y register
+  a: 0b00000000, // accumulator register
+  pc: 0b00000000, // program counter
+  sp: 0b0000000000000000, // stack pointer
   status: 0b0000000, // status flags, C, Z, I, D, B, O, N
 };
 
@@ -34,6 +34,38 @@ const statusFlagMap = {
   B: 0b0000100, // Break Command
   O: 0b0000010, // Overflow Flag
   N: 0b0000001, // Negative Flag
+};
+
+const systemMemory = [];
+
+const interfaceMemory = ({ bus, memory, read, write }) => {
+  if (read) {
+    const newBus = { ...bus };
+    newBus.data = memory[bus.address];
+    return { bus: newBus, memory };
+  }
+
+  if (write) {
+    const newMemory = [...memory];
+    newMemory[bus.address] = bus.data;
+    return { bus, memory: newMemory };
+  }
+
+  return { bus, memory };
+};
+
+const interfaceRegister = ({ bus, register, read, write }) => {
+  if (read) {
+    const newBus = { ...bus };
+    newBus.data = register;
+    return { bus: newBus, register };
+  }
+
+  if (write) {
+    return { bus, register: bus.data };
+  }
+
+  return { bus, register };
 };
 
 // return true or false for given flag
@@ -52,6 +84,7 @@ const setStatusFlag = ({ statusRegister, flagMap, flag, value }) => {
   return statusRegister & inverseFlagMap;
 };
 
+/* ##################################################################### */
 cpuRegisters.status = setStatusFlag({
   statusRegister: cpuRegisters.status,
   flagMap: statusFlagMap,
@@ -85,3 +118,19 @@ cpuRegisters.status = setStatusFlag({
 console.log(getStatusFlag(cpuRegisters.status, statusFlagMap, 'C'));
 
 console.log(dec2bin(cpuRegisters.status));
+
+const { bus, memory } = interfaceMemory({
+  bus: mainBus,
+  memory: systemMemory,
+  read: false,
+  write: true,
+});
+
+const { bus: newBus, memory: newMemory } = interfaceMemory({
+  bus,
+  memory,
+  read: true,
+  write: false,
+});
+
+console.log(newBus, newMemory);
