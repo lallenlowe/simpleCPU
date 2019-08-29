@@ -1,3 +1,5 @@
 'use strict';
 
-module.exports = require('./lib');
+const { start } = require('./lib');
+
+start();
