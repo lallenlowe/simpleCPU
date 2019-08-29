@@ -1,0 +1,15 @@
+parserOptions:
+  ecmaVersion: 6
+
+env:
+  es6: true
+
+rules:
+  no-param-reassign: error
+  arrow-parens:
+    - error
+    - always
+
+extends:
+  - walmart/configurations/es6-node
+  - ./node-es5-eslintrc.yml

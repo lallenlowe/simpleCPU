@@ -1,0 +1,12 @@
+{
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/doc": true
+  },
+  "[javascript]": {
+    "editor.formatOnSave": true
+  },
+  "zenMode.centerLayout": false,
+  "zenMode.hideTabs": false,
+}

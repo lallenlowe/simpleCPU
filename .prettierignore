@@ -1,0 +1,13 @@
+.idea
+build
+*.log
+.DS_Store
+sonar-project.properties
+coverage-output
+*.yml
+*.snap
+.*
+*.pem
+CODEOWNERS
+*.xml
+*.sh
