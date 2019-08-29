@@ -9,4 +9,5 @@
   },
   "zenMode.centerLayout": false,
   "zenMode.hideTabs": false,
+  "editor.tabSize": 2,
 }
