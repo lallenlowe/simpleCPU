@@ -9,14 +9,16 @@ type CpuRegisters = {
   x: number; // 8 bit x register
   y: number; // 8 bit y register
   a: number; // 8 bit accumulator register
-  pc: number; // 8 bit program counter
+  i: number; // instruction register
+  ic: number; // instruction counter
+  pc: number; // 16 bit program counter
   sp: number; // 16 bit stack pointer
   status: number; // 7 bit status flags, C, Z, I, D, B, O, N
 };
 
 // 7 bit numbers
 type StatusFlagMap = {
-  C: number; // Carry
+  [C: string]: number; // Carry
   Z: number; // Zero
   I: number; // Interrupt Disable
   D: number; // Decimal Mode
@@ -42,7 +44,9 @@ const setupCpuRegisters = (): CpuRegisters => {
     x: 0b00000000,
     y: 0b00000000,
     a: 0b00000000,
-    pc: 0b00000000,
+    i: 0b0000000000000000,
+    ic: 0b00000000,
+    pc: 0b0000000000000000,
     sp: 0b0000000000000000,
     status: 0b0000000,
   };

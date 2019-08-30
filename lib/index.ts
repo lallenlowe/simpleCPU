@@ -9,7 +9,7 @@ import {
   setupMemory,
 } from './initial-state';
 import { interfaceMemory } from './memory';
-import { interfaceAllCPURegisters } from './register';
+import { interfaceAllCPURegisters, incrementProgramCounter } from './register';
 import * as alu from './alu';
 
 type MachineState = {
@@ -57,7 +57,7 @@ const cycle = (machineState: MachineState) => {
 
   cpuRegisters = alu.operate({ registers: cpuRegisters /* control word */ });
 
-  cpuRegisters.pc++; // increment the program counter
+  cpuRegisters.pc = incrementProgramCounter(cpuRegisters.pc, true); // control code for counter enable
 
   const newMachineState: MachineState = { cpuRegisters, mainBus, systemMemory };
   setImmediate(() => cycle(newMachineState));
