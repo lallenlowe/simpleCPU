@@ -7,5 +7,6 @@ It will not run 6502 code, but hopefully I can get it to run something similar s
 
 - [Node.js@10.x.x](https://nodejs.org/en/download/)
 - Install deps, ```npm i```
-- Start program, ```node index.js```
+- Build ```npm run build```
+- Start program, ```node dist/index.js```
 - Run tests, ```npm t```

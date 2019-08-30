@@ -1,11 +1,24 @@
 'use strict';
 
-const machine = require('./initial-state');
-const { interfaceMemory } = require('./memory');
-const { interfaceAllCPURegisters } = require('./register');
-const alu = require('./alu');
+import {
+  Bus,
+  CpuRegisters,
+  Memory,
+  setupBus,
+  setupCpuRegisters,
+  setupMemory,
+} from './initial-state';
+import { interfaceMemory } from './memory';
+import { interfaceAllCPURegisters } from './register';
+import * as alu from './alu';
 
-const cycle = (machineState) => {
+type MachineState = {
+  cpuRegisters: CpuRegisters;
+  mainBus: Bus;
+  systemMemory: Memory;
+};
+
+const cycle = (machineState: MachineState) => {
   let { cpuRegisters, mainBus, systemMemory } = machineState;
 
   /* Output pass first since real hardware is parallel and this is synchronous */
@@ -46,7 +59,7 @@ const cycle = (machineState) => {
 
   cpuRegisters.pc++; // increment the program counter
 
-  const newMachineState = { cpuRegisters, mainBus, systemMemory };
+  const newMachineState: MachineState = { cpuRegisters, mainBus, systemMemory };
   setImmediate(() => cycle(newMachineState));
   if (cpuRegisters.pc % 10000 === 0) {
     console.log(newMachineState);
@@ -56,13 +69,11 @@ const cycle = (machineState) => {
 /* ##################################################################### */
 
 const start = () => {
-  const cpuRegisters = machine.setupCpuRegisters();
-  const mainBus = machine.setupBus();
-  const systemMemory = machine.setupMemory();
+  const cpuRegisters = setupCpuRegisters();
+  const mainBus = setupBus();
+  const systemMemory = setupMemory();
 
   cycle({ cpuRegisters, mainBus, systemMemory });
 };
 
-module.exports = {
-  start,
-};
+export { start };
