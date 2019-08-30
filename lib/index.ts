@@ -9,7 +9,12 @@ import {
   setupMemory,
 } from './initial-state';
 import { interfaceMemory } from './memory';
-import { interfaceAllCPURegisters, incrementProgramCounter } from './register';
+import {
+  interfaceAllCPURegisters,
+  incrementProgramCounter,
+  incrementInstructionCounter,
+} from './register';
+import { getControlWord } from './control';
 import * as alu from './alu';
 
 type MachineState = {
@@ -20,6 +25,7 @@ type MachineState = {
 
 const cycle = (machineState: MachineState) => {
   let { cpuRegisters, mainBus, systemMemory } = machineState;
+  const controlWord = getControlWord(cpuRegisters.i, cpuRegisters.ic);
 
   /* Output pass first since real hardware is parallel and this is synchronous */
   ({ bus: mainBus, registers: cpuRegisters } = interfaceAllCPURegisters({
@@ -27,7 +33,7 @@ const cycle = (machineState: MachineState) => {
     registers: cpuRegisters,
     output: true,
     input: false,
-    /* pass control word for setting input/output flags */
+    controlWord,
   }));
 
   ({ bus: mainBus, memory: systemMemory } = interfaceMemory({
@@ -35,7 +41,7 @@ const cycle = (machineState: MachineState) => {
     memory: systemMemory,
     output: true,
     input: false,
-    /* pass control word for setting input/output flags */
+    controlWord,
   }));
 
   /* Input pass next since real hardware is parallel and this is synchronous */
@@ -44,7 +50,7 @@ const cycle = (machineState: MachineState) => {
     registers: cpuRegisters,
     output: false,
     input: true,
-    /* pass control word for setting input/output flags */
+    controlWord,
   }));
 
   ({ bus: mainBus, memory: systemMemory } = interfaceMemory({
@@ -52,18 +58,21 @@ const cycle = (machineState: MachineState) => {
     memory: systemMemory,
     output: false,
     input: true,
-    /* pass control word for setting input/output flags */
+    controlWord,
   }));
 
   cpuRegisters = alu.operate({ registers: cpuRegisters /* control word */ });
 
-  cpuRegisters.pc = incrementProgramCounter(cpuRegisters.pc, true); // control code for counter enable
+  cpuRegisters.pc = incrementProgramCounter(cpuRegisters.pc, controlWord.pce);
+
+  cpuRegisters.ic = incrementInstructionCounter(cpuRegisters.ic);
 
   const newMachineState: MachineState = { cpuRegisters, mainBus, systemMemory };
-  setImmediate(() => cycle(newMachineState));
-  if (cpuRegisters.pc % 10000 === 0) {
-    console.log(newMachineState);
-  }
+  // setImmediate(() => cycle(newMachineState));
+  setTimeout(() => cycle(newMachineState), 1000);
+  // if (cpuRegisters.pc % 10000 === 0) {
+  console.log(newMachineState);
+  // }
 };
 
 /* ##################################################################### */

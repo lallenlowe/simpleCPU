@@ -1,8 +1,25 @@
 'use strict';
 
-const { outputToBus } = require('../bus');
+import { outputToBus } from '../bus';
+import { Bus, Memory } from '../initial-state';
+import { ControlWord } from '../control';
 
-const interfaceMemoryData = ({ bus, memory, output, input }) => {
+type MemoryInterface = {
+  bus: Bus;
+  memory: Memory;
+  output: Boolean;
+  input: Boolean;
+};
+
+type MemoryControlInterface = {
+  bus: Bus;
+  memory: Memory;
+  output: Boolean;
+  input: Boolean;
+  controlWord: ControlWord;
+};
+
+const interfaceMemoryData = ({ bus, memory, output, input }: MemoryInterface) => {
   if (output) {
     const newBus = outputToBus({ bus, address: 0, data: memory.data[memory.addressRegister] });
     return { bus: newBus, memory };
@@ -10,14 +27,14 @@ const interfaceMemoryData = ({ bus, memory, output, input }) => {
 
   if (input) {
     const newMemory = { ...memory };
-    newMemory[memory.addressRegister] = bus.data;
+    newMemory.data[memory.addressRegister] = bus.data;
     return { bus, memory: newMemory };
   }
 
   return { bus, memory };
 };
 
-const interfaceMemoryAddress = ({ bus, memory, output, input }) => {
+const interfaceMemoryAddress = ({ bus, memory, output, input }: MemoryInterface) => {
   if (output) {
     const newBus = outputToBus({
       bus,
@@ -36,35 +53,25 @@ const interfaceMemoryAddress = ({ bus, memory, output, input }) => {
   return { bus, memory };
 };
 
-const interfaceMemory = ({
-  bus,
-  memory,
-  output,
-  input,
-  /* take control word to set input/output flags */
-}) => {
+const interfaceMemory = ({ bus, memory, output, input, controlWord }: MemoryControlInterface) => {
   let systemMemory = { ...memory };
   let mainBus = { ...bus };
 
   ({ bus: mainBus, memory: systemMemory } = interfaceMemoryAddress({
     bus: mainBus,
     memory: systemMemory,
-    output: output & false, // TODO: TAKE CONTROL CODE
-    input: input & false, // TODO: TAKE CONTROL CODE
+    output: output && controlWord.mo,
+    input: input && controlWord.mi,
   }));
 
   ({ bus: mainBus, memory: systemMemory } = interfaceMemoryData({
     bus: mainBus,
     memory: systemMemory,
-    output: output & false, // TODO: TAKE CONTROL CODE
-    input: input & false, // TODO: TAKE CONTROL CODE
+    output: output && controlWord.ro,
+    input: input && controlWord.ri,
   }));
 
   return { bus: mainBus, memory: systemMemory };
 };
 
-module.exports = {
-  interfaceMemory,
-  interfaceMemoryData,
-  interfaceMemoryAddress,
-};
+export { interfaceMemory, interfaceMemoryData, interfaceMemoryAddress };
