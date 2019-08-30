@@ -68,9 +68,12 @@ const getControlWord = (instruction: number, instructionCounter: number): Contro
     return Object.assign({ ...baseControl }, { ro: true, ii: true, pce: true });
   }
 
-  // get the next word from the instructions array
   // subtract 2 from counter to compensate for the 2 load instruction cycles
-  return _.get(instructions, `[${instruction}][${instructionCounter - 2}]`) || baseControl;
+  const counter = instructionCounter - 2;
+  // only get the most significant 8 bits of the instruction since those represent the instruction itself not the data
+  const instructionIndex = instruction >> 16;
+  // get the next word from the instructions array
+  return _.get(instructions, `[${instructionIndex}][${counter}]`) || baseControl;
 };
 
 export { ControlWord, getControlWord };

@@ -21,7 +21,7 @@ type MemoryControlInterface = {
 
 const interfaceMemoryData = ({ bus, memory, output, input }: MemoryInterface) => {
   if (output) {
-    const newBus = outputToBus({ bus, address: 0, data: memory.data[memory.addressRegister] });
+    const newBus = outputToBus({ bus, data: memory.data[memory.addressRegister] });
     return { bus: newBus, memory };
   }
 
@@ -38,15 +38,14 @@ const interfaceMemoryAddress = ({ bus, memory, output, input }: MemoryInterface)
   if (output) {
     const newBus = outputToBus({
       bus,
-      address: memory.addressRegister,
-      data: 0,
+      data: memory.addressRegister,
     });
     return { bus: newBus, memory };
   }
 
   if (input) {
     const newMemory = { ...memory };
-    newMemory.addressRegister = bus.address;
+    newMemory.addressRegister = bus.data;
     return { bus, memory: newMemory };
   }
 

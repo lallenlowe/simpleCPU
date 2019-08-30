@@ -1,8 +1,7 @@
 'use strict';
 
 type Bus = {
-  address: number; // 16 bit
-  data: number; // 8 bit
+  data: number; // 16 bit
 };
 
 type CpuRegisters = {
@@ -34,8 +33,7 @@ type Memory = {
 
 const setupBus = (): Bus => {
   return {
-    address: 0b0000000000000000,
-    data: 0b00000000,
+    data: 0b0000000000000000,
   };
 };
 
@@ -65,7 +63,10 @@ const getStatusFlagMap = (): StatusFlagMap => {
 };
 
 const setupMemory = (): Memory => {
-  return { addressRegister: 0b0000000000000000, data: [0b10101010] };
+  // put a command and some data in memory for now for testing.
+  const mem = { addressRegister: 0b0000000000000000, data: [0xa2000f] };
+  mem.data[15] = 12;
+  return mem;
 };
 
 export {

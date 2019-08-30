@@ -3,6 +3,7 @@
 import { outputToBus } from '../bus';
 import { Bus, CpuRegisters, StatusFlagMap } from '../initial-state';
 import { ControlWord } from '../control';
+import { getLeastSignificantBits } from '../common';
 
 type RegisterInterface = {
   bus: Bus;
@@ -36,7 +37,27 @@ const interfaceRegister = ({
   input,
 }: RegisterInterface): RegisterInterfaceOutput => {
   if (output) {
-    const newBus = outputToBus({ bus, address: 0, data: register });
+    const newBus = outputToBus({ bus, data: register });
+    return { bus: newBus, register };
+  }
+
+  if (input) {
+    return { bus, register: bus.data };
+  }
+
+  return { bus, register };
+};
+
+const interfaceInstructionRegister = ({
+  bus,
+  register,
+  output,
+  input,
+}: RegisterInterface): RegisterInterfaceOutput => {
+  if (output) {
+    // only put the instruction data bits on the bus
+    const registerSlice = getLeastSignificantBits(register, 16);
+    const newBus = outputToBus({ bus, data: registerSlice });
     return { bus: newBus, register };
   }
 
@@ -77,7 +98,7 @@ const interfaceAllCPURegisters = ({
     input: input && controlWord.ai,
   }));
 
-  ({ bus: mainBus, register: cpuRegisters.i } = interfaceRegister({
+  ({ bus: mainBus, register: cpuRegisters.i } = interfaceInstructionRegister({
     bus: mainBus,
     register: cpuRegisters.i,
     output: output && controlWord.io,

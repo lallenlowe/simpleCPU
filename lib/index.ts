@@ -16,6 +16,7 @@ import {
 } from './register';
 import { getControlWord } from './control';
 import * as alu from './alu';
+import { clearBus } from './bus';
 
 type MachineState = {
   cpuRegisters: CpuRegisters;
@@ -66,6 +67,8 @@ const cycle = (machineState: MachineState) => {
   cpuRegisters.pc = incrementProgramCounter(cpuRegisters.pc, controlWord.pce);
 
   cpuRegisters.ic = incrementInstructionCounter(cpuRegisters.ic);
+
+  mainBus = clearBus();
 
   const newMachineState: MachineState = { cpuRegisters, mainBus, systemMemory };
   // setImmediate(() => cycle(newMachineState));
