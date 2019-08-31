@@ -15,24 +15,24 @@ const instructionMap = {
 };
 
 type ControlWord = {
-  xi: Boolean; // x register input
-  xo: Boolean; // x register output
-  yi: Boolean; // y register input
-  yo: Boolean; // y register output
-  ai: Boolean; // a register input
-  ao: Boolean; // a register output
-  ii: Boolean; // instruction register input
-  io: Boolean; // instruction register output
-  pci: Boolean; // program counter input
-  pco: Boolean; // program counter output
-  pce: Boolean; // program counter enable
-  spi: Boolean; // stack pointer input
-  spo: Boolean; // stack pointer output
-  mi: Boolean; // memory address register input
-  mo: Boolean; // memory address register output
-  ri: Boolean; // ram data input
-  ro: Boolean; // ram data output
-  oi: Boolean; // output register in
+  xi: boolean; // x register input
+  xo: boolean; // x register output
+  yi: boolean; // y register input
+  yo: boolean; // y register output
+  ai: boolean; // a register input
+  ao: boolean; // a register output
+  ii: boolean; // instruction register input
+  io: boolean; // instruction register output
+  pci: boolean; // program counter input
+  pco: boolean; // program counter output
+  pce: boolean; // program counter enable
+  spi: boolean; // stack pointer input
+  spo: boolean; // stack pointer output
+  mi: boolean; // memory address register input
+  mo: boolean; // memory address register output
+  ri: boolean; // ram data input
+  ro: boolean; // ram data output
+  oi: boolean; // output register in
 };
 
 type MicroInstructions = Array<ControlWord>;

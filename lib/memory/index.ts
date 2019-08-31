@@ -7,15 +7,15 @@ import { ControlWord } from '../control';
 type MemoryInterface = {
   bus: Bus;
   memory: Memory;
-  output: Boolean;
-  input: Boolean;
+  output: boolean;
+  input: boolean;
 };
 
 type MemoryControlInterface = {
   bus: Bus;
   memory: Memory;
-  output: Boolean;
-  input: Boolean;
+  output: boolean;
+  input: boolean;
   controlWord: ControlWord;
 };
 

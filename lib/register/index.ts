@@ -8,8 +8,8 @@ import { getLeastSignificantBits } from '../common';
 type RegisterInterface = {
   bus: Bus;
   register: number;
-  output: Boolean;
-  input: Boolean;
+  output: boolean;
+  input: boolean;
 };
 
 type RegisterInterfaceOutput = {
@@ -20,8 +20,8 @@ type RegisterInterfaceOutput = {
 type CpuRegistersInterface = {
   bus: Bus;
   registers: CpuRegisters;
-  output: Boolean;
-  input: Boolean;
+  output: boolean;
+  input: boolean;
   controlWord: ControlWord;
 };
 
@@ -129,7 +129,7 @@ const interfaceAllCPURegisters = ({
   return { bus: mainBus, registers: cpuRegisters };
 };
 
-const incrementProgramCounter = (register: number, counterEnable: Boolean): number => {
+const incrementProgramCounter = (register: number, counterEnable: boolean): number => {
   if (counterEnable) {
     // 16 bit counter, so roll back to zero if it equals 65535
     if (register >= 0b1111111111111111) {
@@ -152,7 +152,7 @@ const incrementInstructionCounter = (register: number): number => {
 };
 
 // return true or false for given flag
-const getStatusFlag = (statusRegister: number, flagMap: StatusFlagMap, flag: string): Boolean => {
+const getStatusFlag = (statusRegister: number, flagMap: StatusFlagMap, flag: string): boolean => {
   const flagValue = statusRegister & flagMap[flag];
   return flagValue > 0;
 };
@@ -167,7 +167,7 @@ const setStatusFlag = ({
   statusRegister: number;
   flagMap: StatusFlagMap;
   flag: string;
-  value: Boolean;
+  value: boolean;
 }): number => {
   if (value) {
     return statusRegister | flagMap[flag];
