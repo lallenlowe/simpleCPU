@@ -12,6 +12,7 @@ type CpuRegisters = {
   ic: number; // instruction counter
   pc: number; // 16 bit program counter
   sp: number; // 16 bit stack pointer
+  o: number; // 8 bit output register
   status: number; // 7 bit status flags, C, Z, I, D, B, O, N
 };
 
@@ -46,6 +47,7 @@ const setupCpuRegisters = (): CpuRegisters => {
     ic: 0b00000000,
     pc: 0b0000000000000000,
     sp: 0b0000000000000000,
+    o: 0b00000000,
     status: 0b0000000,
   };
 };
@@ -64,8 +66,9 @@ const getStatusFlagMap = (): StatusFlagMap => {
 
 const setupMemory = (): Memory => {
   // put a command and some data in memory for now for testing.
-  const mem = { addressRegister: 0b0000000000000000, data: [0xa2000f] };
-  mem.data[15] = 12;
+  const mem = { addressRegister: 0b0000000000000000, data: [0xa2000f, 0xa00010, 0x010000] };
+  mem.data[15] = 16;
+  mem.data[16] = 54;
   return mem;
 };
 

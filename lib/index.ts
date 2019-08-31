@@ -1,66 +1,15 @@
 'use strict';
 
-import {
-  Bus,
-  CpuRegisters,
-  Memory,
-  setupBus,
-  setupCpuRegisters,
-  setupMemory,
-} from './initial-state';
-import { interfaceMemory } from './memory';
-import {
-  interfaceAllCPURegisters,
-  incrementProgramCounter,
-  incrementInstructionCounter,
-} from './register';
+import { setupBus, setupCpuRegisters, setupMemory } from './initial-state';
+import { incrementProgramCounter, incrementInstructionCounter } from './register';
 import { getControlWord } from './control';
 import * as alu from './alu';
-import { clearBus } from './bus';
-
-type MachineState = {
-  cpuRegisters: CpuRegisters;
-  mainBus: Bus;
-  systemMemory: Memory;
-};
+import { MachineState, clearBus, interfaceAllRegisters } from './bus';
 
 const cycle = (machineState: MachineState) => {
-  let { cpuRegisters, mainBus, systemMemory } = machineState;
-  const controlWord = getControlWord(cpuRegisters.i, cpuRegisters.ic);
+  const controlWord = getControlWord(machineState.cpuRegisters.i, machineState.cpuRegisters.ic);
 
-  /* Output pass first since real hardware is parallel and this is synchronous */
-  ({ bus: mainBus, registers: cpuRegisters } = interfaceAllCPURegisters({
-    bus: mainBus,
-    registers: cpuRegisters,
-    output: true,
-    input: false,
-    controlWord,
-  }));
-
-  ({ bus: mainBus, memory: systemMemory } = interfaceMemory({
-    bus: mainBus,
-    memory: systemMemory,
-    output: true,
-    input: false,
-    controlWord,
-  }));
-
-  /* Input pass next since real hardware is parallel and this is synchronous */
-  ({ bus: mainBus, registers: cpuRegisters } = interfaceAllCPURegisters({
-    bus: mainBus,
-    registers: cpuRegisters,
-    output: false,
-    input: true,
-    controlWord,
-  }));
-
-  ({ bus: mainBus, memory: systemMemory } = interfaceMemory({
-    bus: mainBus,
-    memory: systemMemory,
-    output: false,
-    input: true,
-    controlWord,
-  }));
+  let { cpuRegisters, mainBus, systemMemory } = interfaceAllRegisters(machineState, controlWord);
 
   cpuRegisters = alu.operate({ registers: cpuRegisters /* control word */ });
 
@@ -70,11 +19,16 @@ const cycle = (machineState: MachineState) => {
 
   mainBus = clearBus();
 
+  if (controlWord.oi) {
+    console.log(cpuRegisters.o);
+    process.exit();
+  }
+
   const newMachineState: MachineState = { cpuRegisters, mainBus, systemMemory };
-  // setImmediate(() => cycle(newMachineState));
-  setTimeout(() => cycle(newMachineState), 1000);
+  setImmediate(() => cycle(newMachineState));
+  //setTimeout(() => cycle(newMachineState), 1000);
   // if (cpuRegisters.pc % 10000 === 0) {
-  console.log(newMachineState);
+  //console.log(newMachineState);
   // }
 };
 

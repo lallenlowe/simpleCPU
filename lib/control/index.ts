@@ -1,8 +1,11 @@
 'use strict';
 
 import * as _ from 'lodash';
+// import { setStatusFlag } from '../register';
 
 const instructionMap = {
+  BRK: 0x00,
+  OTA: 0x01,
   LDA: 0xa9,
   LDX: 0xa2,
   LDY: 0xa0,
@@ -29,6 +32,7 @@ type ControlWord = {
   mo: Boolean; // memory address register output
   ri: Boolean; // ram data input
   ro: Boolean; // ram data output
+  oi: Boolean; // output register in
 };
 
 type MicroInstructions = Array<ControlWord>;
@@ -51,12 +55,18 @@ const baseControl: ControlWord = {
   mo: false, // memory address register output
   ri: false, // ram data input
   ro: false, // ram data output
+  oi: false, // output register in
 };
 
 const instructions: Array<MicroInstructions> = [];
+instructions[instructionMap.OTA] = [Object.assign({ ...baseControl }, { ao: true, oi: true })];
 instructions[instructionMap.LDX] = [
   Object.assign({ ...baseControl }, { io: true, mi: true }),
   Object.assign({ ...baseControl }, { ro: true, xi: true }),
+];
+instructions[instructionMap.LDY] = [
+  Object.assign({ ...baseControl }, { io: true, mi: true }),
+  Object.assign({ ...baseControl }, { ro: true, yi: true }),
 ];
 
 const getControlWord = (instruction: number, instructionCounter: number): ControlWord => {

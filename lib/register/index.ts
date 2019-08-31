@@ -119,6 +119,13 @@ const interfaceAllCPURegisters = ({
     input: input && controlWord.spi,
   }));
 
+  ({ bus: mainBus, register: cpuRegisters.o } = interfaceRegister({
+    bus: mainBus,
+    register: cpuRegisters.o,
+    output: output && false,
+    input: input && controlWord.oi,
+  }));
+
   return { bus: mainBus, registers: cpuRegisters };
 };
 
