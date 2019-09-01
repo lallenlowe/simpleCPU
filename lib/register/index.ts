@@ -1,7 +1,7 @@
 'use strict';
 
 import { outputToBus } from '../bus';
-import { Bus, CpuRegisters, StatusFlagMap } from '../initial-state';
+import { Bus, CpuRegisters, StatusFlagMap, getStatusFlagMap } from '../initial-state';
 import { ControlWord } from '../control';
 import { getLeastSignificantBits } from '../common';
 
@@ -152,7 +152,8 @@ const incrementInstructionCounter = (register: number): number => {
 };
 
 // return true or false for given flag
-const getStatusFlag = (statusRegister: number, flagMap: StatusFlagMap, flag: string): boolean => {
+const getStatusFlag = (statusRegister: number, flag: string): boolean => {
+  const flagMap = getStatusFlagMap();
   const flagValue = statusRegister & flagMap[flag];
   return flagValue > 0;
 };

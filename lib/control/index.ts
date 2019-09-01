@@ -2,16 +2,18 @@
 
 import * as _ from 'lodash';
 // import { setStatusFlag } from '../register';
+import { getStatusFlagMap } from '../initial-state';
 
 const instructionMap = {
-  BRK: 0x00,
-  OTA: 0x01,
-  LDA: 0xa9,
-  LDX: 0xa2,
-  LDY: 0xa0,
-  STA: 0x85,
-  STX: 0x86,
-  STY: 0x84,
+  KIL: 0x00, // Kill the computer, stop the whole program
+  OTA: 0x01, // Output the value of the a register
+  SEC: 0x26, // Set the carry flag
+  LDA: 0xa9, // Load the a register with a value from a memory address
+  LDX: 0xa2, // Load the x register with a value from a memory address
+  LDY: 0xa0, // Load the y register with a value from a memory address
+  STA: 0x85, // Store the contents of the a register to a memory address
+  STX: 0x86, // Store the contents of the x register to a memory address
+  STY: 0x84, // Store the contents of the y register to a memory address
 };
 
 type ControlWord = {
@@ -33,6 +35,7 @@ type ControlWord = {
   ri: boolean; // ram data input
   ro: boolean; // ram data output
   oi: boolean; // output register in
+  if: number; // Cpu status flags to set immediately
 };
 
 type MicroInstructions = Array<ControlWord>;
@@ -56,10 +59,18 @@ const baseControl: ControlWord = {
   ri: false, // ram data input
   ro: false, // ram data output
   oi: false, // output register in
+  if: 0b00000000, // immediate flags to set on command
 };
 
 const instructions: Array<MicroInstructions> = [];
+instructions[instructionMap.KIL] = [
+  Object.assign({ ...baseControl }, { if: getStatusFlagMap()['K'] }),
+];
 instructions[instructionMap.OTA] = [Object.assign({ ...baseControl }, { ao: true, oi: true })];
+instructions[instructionMap.LDA] = [
+  Object.assign({ ...baseControl }, { io: true, mi: true }),
+  Object.assign({ ...baseControl }, { ro: true, ai: true }),
+];
 instructions[instructionMap.LDX] = [
   Object.assign({ ...baseControl }, { io: true, mi: true }),
   Object.assign({ ...baseControl }, { ro: true, xi: true }),
@@ -68,6 +79,22 @@ instructions[instructionMap.LDY] = [
   Object.assign({ ...baseControl }, { io: true, mi: true }),
   Object.assign({ ...baseControl }, { ro: true, yi: true }),
 ];
+instructions[instructionMap.STA] = [
+  Object.assign({ ...baseControl }, { io: true, mi: true }),
+  Object.assign({ ...baseControl }, { ao: true, ri: true }),
+];
+instructions[instructionMap.STX] = [
+  Object.assign({ ...baseControl }, { io: true, mi: true }),
+  Object.assign({ ...baseControl }, { xo: true, ri: true }),
+];
+instructions[instructionMap.STY] = [
+  Object.assign({ ...baseControl }, { io: true, mi: true }),
+  Object.assign({ ...baseControl }, { yo: true, ri: true }),
+];
+
+const setImmediateFlags = (controlWord: ControlWord): number => {
+  return controlWord.if;
+};
 
 const getControlWord = (instruction: number, instructionCounter: number): ControlWord => {
   // always load next instruction from ram into instruction register, takes 2 cycles
@@ -86,4 +113,4 @@ const getControlWord = (instruction: number, instructionCounter: number): Contro
   return _.get(instructions, `[${instructionIndex}][${counter}]`) || baseControl;
 };
 
-export { ControlWord, getControlWord };
+export { instructionMap, ControlWord, setImmediateFlags, getControlWord };
