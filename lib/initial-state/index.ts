@@ -74,36 +74,28 @@ const setupMemory = (): Memory => {
   // put a command and some data in memory for now for testing.
   const mem = {
     addressRegister: 0b0000000000000000,
-    data: [
-      0xa2000f,
-      0xa00010,
-      0xaa0000,
-      0x010000,
-      0x85000f,
-      0xa2000f,
-      0xa00010,
-      0xaa0000,
-      0x6d0010,
-      0x010000,
-      0x000000,
-    ],
+    data: [],
   };
+
   return mem;
 };
 
 const loadBinFileToMemory = (memory: Memory, fileName: string): Memory => {
   const newMemory = { ...memory };
   const file = fs.readFileSync(fileName, { encoding: 'hex' });
-  const chunks = file.match(/.{6}/g) || [];
-  const memoryContents = chunks.map((str) => {
-    return parseInt(str, 16);
+  const chunks = file.match(/.{10}/g) || [];
+  // const memoryContents = chunks.map((str) => {
+  //   return parseInt(str, 16);
+  // });
+  const memoryContents: number[] = [];
+  chunks.forEach((chunk) => {
+    const index = parseInt(chunk.slice(0, 4), 16);
+    memoryContents[index] = parseInt(chunk.slice(4), 16);
   });
 
-  //fs.writeFileSync('./testing1.bin', file, { encoding: 'hex' });
-
   newMemory.data = memoryContents;
-  newMemory.data[15] = 16;
-  newMemory.data[16] = 54;
+  // newMemory.data[15] = 16;
+  // newMemory.data[16] = 54;
 
   return newMemory;
 };

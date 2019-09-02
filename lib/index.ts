@@ -11,7 +11,7 @@ const cycle = (machineState: MachineState) => {
 
   let { cpuRegisters, mainBus, systemMemory } = interfaceAllRegisters(machineState, controlWord);
 
-  cpuRegisters.status = setImmediateFlags(controlWord);
+  cpuRegisters.status = setImmediateFlags(controlWord); // this is a bug, flags should be set conditionally
 
   cpuRegisters = alu.operate({ registers: cpuRegisters, controlWord });
 
@@ -39,7 +39,7 @@ const start = () => {
   const cpuRegisters = setupCpuRegisters();
   const mainBus = setupBus();
   let systemMemory = setupMemory();
-  systemMemory = loadBinFileToMemory(systemMemory, './test.bin');
+  systemMemory = loadBinFileToMemory(systemMemory, './testing.bin');
 
   cycle({ cpuRegisters, mainBus, systemMemory });
 };

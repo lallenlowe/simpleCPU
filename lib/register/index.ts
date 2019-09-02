@@ -153,6 +153,11 @@ const incrementInstructionCounter = (register: number, controlWord: ControlWord)
   if (controlWord === baseControl) {
     return 0b000; // reset the instruction counter if we get an empty control word in order to save extra CPU cycles
   }
+
+  if (controlWord.pci) {
+    return 0b000; // reset the instruction counter if the program counter was set on this cycle
+  }
+
   // 3 bit counter, so roll back to zero if it equals 7
   if (register >= 0b111) {
     return 0b000;

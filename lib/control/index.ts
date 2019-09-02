@@ -1,13 +1,15 @@
 'use strict';
 
-import * as _ from 'lodash';
-// import { setStatusFlag } from '../register';
+import _ from 'lodash';
 import { getStatusFlagMap } from '../initial-state';
 
-const instructionMap = {
+type InstructionMap = { [key: string]: number };
+
+const instructionMap: InstructionMap = {
   HLT: 0x00, // Halt the computer, stop the whole program
   OTA: 0x01, // Output the value of the a register
   SEC: 0x26, // Set the carry flag
+  JMP: 0x4c, // Jump to the given address
   ADC: 0x6d, // Add with carry
   LDA: 0xa9, // Load the a register with a value from a memory address
   LDX: 0xa2, // Load the x register with a value from a memory address
@@ -73,6 +75,7 @@ instructions[instructionMap.HLT] = [
   Object.assign({ ...baseControl }, { if: getStatusFlagMap()['K'] }),
 ];
 instructions[instructionMap.OTA] = [Object.assign({ ...baseControl }, { ao: true, oi: true })];
+instructions[instructionMap.JMP] = [Object.assign({ ...baseControl }, { io: true, pci: true })];
 instructions[instructionMap.ADC] = [
   Object.assign({ ...baseControl }, { ao: true, xi: true }),
   Object.assign({ ...baseControl }, { io: true, mi: true }),
@@ -106,6 +109,7 @@ instructions[instructionMap.STY] = [
 ];
 
 const setImmediateFlags = (controlWord: ControlWord): number => {
+  // this is a bug, flags should be set conditionally
   return controlWord.if;
 };
 
