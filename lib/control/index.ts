@@ -73,6 +73,12 @@ instructions[instructionMap.HLT] = [
   Object.assign({ ...baseControl }, { if: getStatusFlagMap()['K'] }),
 ];
 instructions[instructionMap.OTA] = [Object.assign({ ...baseControl }, { ao: true, oi: true })];
+instructions[instructionMap.ADC] = [
+  Object.assign({ ...baseControl }, { ao: true, xi: true }),
+  Object.assign({ ...baseControl }, { io: true, mi: true }),
+  Object.assign({ ...baseControl }, { ro: true, yi: true }),
+  Object.assign({ ...baseControl }, { so: true, ai: true }),
+];
 instructions[instructionMap.LDA] = [
   Object.assign({ ...baseControl }, { io: true, mi: true }),
   Object.assign({ ...baseControl }, { ro: true, ai: true }),
@@ -120,4 +126,4 @@ const getControlWord = (instruction: number, instructionCounter: number): Contro
   return _.get(instructions, `[${instructionIndex}][${counter}]`) || baseControl;
 };
 
-export { instructionMap, ControlWord, setImmediateFlags, getControlWord };
+export { instructionMap, ControlWord, setImmediateFlags, getControlWord, baseControl };

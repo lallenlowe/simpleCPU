@@ -2,7 +2,7 @@
 
 import { outputToBus } from '../bus';
 import { Bus, CpuRegisters, getStatusFlagMap } from '../initial-state';
-import { ControlWord } from '../control';
+import { ControlWord, baseControl } from '../control';
 import { getLeastSignificantBits } from '../common';
 
 type RegisterInterface = {
@@ -149,7 +149,10 @@ const incrementProgramCounter = (register: number, counterEnable: boolean): numb
   return register;
 };
 
-const incrementInstructionCounter = (register: number): number => {
+const incrementInstructionCounter = (register: number, controlWord: ControlWord): number => {
+  if (controlWord === baseControl) {
+    return 0b000; // reset the instruction counter if we get an empty control word in order to save extra CPU cycles
+  }
   // 3 bit counter, so roll back to zero if it equals 7
   if (register >= 0b111) {
     return 0b000;

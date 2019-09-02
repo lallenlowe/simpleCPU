@@ -17,7 +17,7 @@ const cycle = (machineState: MachineState) => {
 
   cpuRegisters.pc = incrementProgramCounter(cpuRegisters.pc, controlWord.pce);
 
-  cpuRegisters.ic = incrementInstructionCounter(cpuRegisters.ic);
+  cpuRegisters.ic = incrementInstructionCounter(cpuRegisters.ic, controlWord);
 
   mainBus = clearBus();
 
