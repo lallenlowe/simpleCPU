@@ -1,5 +1,7 @@
 'use strict';
 
+import * as fs from 'fs';
+
 type Bus = {
   data: number; // 16 bit
 };
@@ -81,13 +83,29 @@ const setupMemory = (): Memory => {
       0xa2000f,
       0xa00010,
       0xaa0000,
+      0x6d0010,
       0x010000,
       0x000000,
     ],
   };
-  mem.data[15] = 16;
-  mem.data[16] = 54;
   return mem;
+};
+
+const loadBinFileToMemory = (memory: Memory, fileName: string): Memory => {
+  const newMemory = { ...memory };
+  const file = fs.readFileSync(fileName, { encoding: 'hex' });
+  const chunks = file.match(/.{6}/g) || [];
+  const memoryContents = chunks.map((str) => {
+    return parseInt(str, 16);
+  });
+
+  //fs.writeFileSync('./testing1.bin', file, { encoding: 'hex' });
+
+  newMemory.data = memoryContents;
+  newMemory.data[15] = 16;
+  newMemory.data[16] = 54;
+
+  return newMemory;
 };
 
 export {
@@ -99,4 +117,5 @@ export {
   setupCpuRegisters,
   getStatusFlagMap,
   setupMemory,
+  loadBinFileToMemory,
 };

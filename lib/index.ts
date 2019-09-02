@@ -1,6 +1,6 @@
 'use strict';
 
-import { setupBus, setupCpuRegisters, setupMemory } from './initial-state';
+import { setupBus, setupCpuRegisters, setupMemory, loadBinFileToMemory } from './initial-state';
 import { incrementProgramCounter, incrementInstructionCounter, getStatusFlag } from './register';
 import { setImmediateFlags, getControlWord } from './control';
 import * as alu from './alu';
@@ -38,7 +38,8 @@ const cycle = (machineState: MachineState) => {
 const start = () => {
   const cpuRegisters = setupCpuRegisters();
   const mainBus = setupBus();
-  const systemMemory = setupMemory();
+  let systemMemory = setupMemory();
+  systemMemory = loadBinFileToMemory(systemMemory, './test.bin');
 
   cycle({ cpuRegisters, mainBus, systemMemory });
 };
