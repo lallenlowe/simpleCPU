@@ -8,6 +8,7 @@ type CpuRegisters = {
   x: number; // 8 bit x register
   y: number; // 8 bit y register
   a: number; // 8 bit accumulator register
+  s: number; // 8 bit sum register
   i: number; // instruction register
   ic: number; // instruction counter
   pc: number; // 16 bit program counter
@@ -44,6 +45,7 @@ const setupCpuRegisters = (): CpuRegisters => {
     x: 0b00000000,
     y: 0b00000000,
     a: 0b00000000,
+    s: 0b00000000,
     i: 0b0000000000000000,
     ic: 0b00000000,
     pc: 0b0000000000000000,
@@ -70,7 +72,18 @@ const setupMemory = (): Memory => {
   // put a command and some data in memory for now for testing.
   const mem = {
     addressRegister: 0b0000000000000000,
-    data: [0xa2000f, 0xa00010, 0x010000, 0x85000f, 0xa2000f, 0xa00010, 0x010000, 0x000000],
+    data: [
+      0xa2000f,
+      0xa00010,
+      0xaa0000,
+      0x010000,
+      0x85000f,
+      0xa2000f,
+      0xa00010,
+      0xaa0000,
+      0x010000,
+      0x000000,
+    ],
   };
   mem.data[15] = 16;
   mem.data[16] = 54;

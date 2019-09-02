@@ -5,12 +5,14 @@ import * as _ from 'lodash';
 import { getStatusFlagMap } from '../initial-state';
 
 const instructionMap = {
-  KIL: 0x00, // Kill the computer, stop the whole program
+  HLT: 0x00, // Halt the computer, stop the whole program
   OTA: 0x01, // Output the value of the a register
   SEC: 0x26, // Set the carry flag
+  ADC: 0x6d, // Add with carry
   LDA: 0xa9, // Load the a register with a value from a memory address
   LDX: 0xa2, // Load the x register with a value from a memory address
   LDY: 0xa0, // Load the y register with a value from a memory address
+  TSA: 0xaa, // Transfer the value of sum to the a register
   STA: 0x85, // Store the contents of the a register to a memory address
   STX: 0x86, // Store the contents of the x register to a memory address
   STY: 0x84, // Store the contents of the y register to a memory address
@@ -23,6 +25,7 @@ type ControlWord = {
   yo: boolean; // y register output
   ai: boolean; // a register input
   ao: boolean; // a register output
+  so: boolean; // sum register output
   ii: boolean; // instruction register input
   io: boolean; // instruction register output
   pci: boolean; // program counter input
@@ -35,6 +38,7 @@ type ControlWord = {
   ri: boolean; // ram data input
   ro: boolean; // ram data output
   oi: boolean; // output register in
+  co: boolean; // comparator output to cpu flags
   if: number; // Cpu status flags to set immediately
 };
 
@@ -47,6 +51,7 @@ const baseControl: ControlWord = {
   yo: false, // y register output
   ai: false, // a register input
   ao: false, // a register output
+  so: false, // sum register output
   ii: false, // instruction register input
   io: false, // instruction register output
   pci: false, // program counter input
@@ -59,11 +64,12 @@ const baseControl: ControlWord = {
   ri: false, // ram data input
   ro: false, // ram data output
   oi: false, // output register in
+  co: false, // comparator output to cpu flags
   if: 0b00000000, // immediate flags to set on command
 };
 
 const instructions: Array<MicroInstructions> = [];
-instructions[instructionMap.KIL] = [
+instructions[instructionMap.HLT] = [
   Object.assign({ ...baseControl }, { if: getStatusFlagMap()['K'] }),
 ];
 instructions[instructionMap.OTA] = [Object.assign({ ...baseControl }, { ao: true, oi: true })];
@@ -79,6 +85,7 @@ instructions[instructionMap.LDY] = [
   Object.assign({ ...baseControl }, { io: true, mi: true }),
   Object.assign({ ...baseControl }, { ro: true, yi: true }),
 ];
+instructions[instructionMap.TSA] = [Object.assign({ ...baseControl }, { so: true, ai: true })];
 instructions[instructionMap.STA] = [
   Object.assign({ ...baseControl }, { io: true, mi: true }),
   Object.assign({ ...baseControl }, { ao: true, ri: true }),

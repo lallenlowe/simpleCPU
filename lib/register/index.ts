@@ -1,7 +1,7 @@
 'use strict';
 
 import { outputToBus } from '../bus';
-import { Bus, CpuRegisters, StatusFlagMap, getStatusFlagMap } from '../initial-state';
+import { Bus, CpuRegisters, getStatusFlagMap } from '../initial-state';
 import { ControlWord } from '../control';
 import { getLeastSignificantBits } from '../common';
 
@@ -98,6 +98,13 @@ const interfaceAllCPURegisters = ({
     input: input && controlWord.ai,
   }));
 
+  ({ bus: mainBus, register: cpuRegisters.s } = interfaceRegister({
+    bus: mainBus,
+    register: cpuRegisters.s,
+    output: output && controlWord.so,
+    input: input && false,
+  }));
+
   ({ bus: mainBus, register: cpuRegisters.i } = interfaceInstructionRegister({
     bus: mainBus,
     register: cpuRegisters.i,
@@ -161,15 +168,14 @@ const getStatusFlag = (statusRegister: number, flag: string): boolean => {
 // return a new statusRegister
 const setStatusFlag = ({
   statusRegister,
-  flagMap,
   flag,
   value,
 }: {
   statusRegister: number;
-  flagMap: StatusFlagMap;
   flag: string;
   value: boolean;
 }): number => {
+  const flagMap = getStatusFlagMap();
   if (value) {
     return statusRegister | flagMap[flag];
   }
