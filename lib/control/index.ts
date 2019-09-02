@@ -41,6 +41,7 @@ type ControlWord = {
   ro: boolean; // ram data output
   oi: boolean; // output register in
   co: boolean; // comparator output to cpu flags
+  ht: boolean; // halt the computer
   if: number; // Cpu status flags to set immediately
 };
 
@@ -67,14 +68,16 @@ const baseControl: ControlWord = {
   ro: false, // ram data output
   oi: false, // output register in
   co: false, // comparator output to cpu flags
+  ht: false, // halt the computer
   if: 0b00000000, // immediate flags to set on command
 };
 
 const instructions: Array<MicroInstructions> = [];
-instructions[instructionMap.HLT] = [
-  Object.assign({ ...baseControl }, { if: getStatusFlagMap()['K'] }),
-];
+instructions[instructionMap.HLT] = [Object.assign({ ...baseControl }, { ht: true })];
 instructions[instructionMap.OTA] = [Object.assign({ ...baseControl }, { ao: true, oi: true })];
+instructions[instructionMap.SEC] = [
+  Object.assign({ ...baseControl }, { if: getStatusFlagMap()['C'] }),
+];
 instructions[instructionMap.JMP] = [Object.assign({ ...baseControl }, { io: true, pci: true })];
 instructions[instructionMap.ADC] = [
   Object.assign({ ...baseControl }, { ao: true, xi: true }),

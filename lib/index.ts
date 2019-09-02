@@ -1,7 +1,7 @@
 'use strict';
 
 import { setupBus, setupCpuRegisters, setupMemory, loadBinFileToMemory } from './initial-state';
-import { incrementProgramCounter, incrementInstructionCounter, getStatusFlag } from './register';
+import { incrementProgramCounter, incrementInstructionCounter } from './register';
 import { setImmediateFlags, getControlWord } from './control';
 import * as alu from './alu';
 import { MachineState, clearBus, interfaceAllRegisters } from './bus';
@@ -26,7 +26,7 @@ const cycle = (machineState: MachineState) => {
   }
 
   const newMachineState: MachineState = { cpuRegisters, mainBus, systemMemory };
-  if (!getStatusFlag(cpuRegisters.status, 'K')) {
+  if (!controlWord.ht) {
     setImmediate(() => cycle(newMachineState));
   } else {
     console.log(newMachineState);

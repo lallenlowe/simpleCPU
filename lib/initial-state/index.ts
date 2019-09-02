@@ -21,8 +21,7 @@ type CpuRegisters = {
 
 // 7 bit numbers
 type StatusFlagMap = {
-  [K: string]: number; // Kill
-  C: number; // Carry
+  [C: string]: number; // Carry
   Z: number; // Zero
   I: number; // Interrupt Disable
   D: number; // Decimal Mode
@@ -53,20 +52,19 @@ const setupCpuRegisters = (): CpuRegisters => {
     pc: 0b0000000000000000,
     sp: 0b0000000000000000,
     o: 0b00000000,
-    status: 0b0000000,
+    status: 0b000000,
   };
 };
 
 const getStatusFlagMap = (): StatusFlagMap => {
   return {
-    K: 0b10000000,
-    C: 0b01000000,
-    Z: 0b00100000,
-    I: 0b00010000,
-    D: 0b00001000,
-    B: 0b00000100,
-    O: 0b00000010,
-    N: 0b00000001,
+    C: 0b1000000,
+    Z: 0b0100000,
+    I: 0b0010000,
+    D: 0b0001000,
+    B: 0b0000100,
+    O: 0b0000010,
+    N: 0b0000001,
   };
 };
 
