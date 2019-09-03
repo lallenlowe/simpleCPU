@@ -16,18 +16,15 @@ type CpuRegisters = {
   pc: number; // 16 bit program counter
   sp: number; // 16 bit stack pointer
   o: number; // 8 bit output register
-  status: number; // 7 bit status flags, C, Z, I, D, B, O, N
-};
-
-// 7 bit numbers
-type StatusFlagMap = {
-  [C: string]: number; // Carry
-  Z: number; // Zero
-  I: number; // Interrupt Disable
-  D: number; // Decimal Mode
-  B: number; // Break Command
-  O: number; // Overflow Flag
-  N: number; // Negative Flag
+  status: {
+    [C: string]: boolean; // Carry
+    Z: boolean; // Zero
+    I: boolean; // Interrupt Disable
+    D: boolean; // Decimal Mode
+    B: boolean; // Break command
+    O: boolean; // Overflow
+    N: boolean; // Negative
+  }; // 7 1-bit status flag registers, C, Z, I, D, B, O, N
 };
 
 type Memory = {
@@ -52,19 +49,15 @@ const setupCpuRegisters = (): CpuRegisters => {
     pc: 0b0000000000000000,
     sp: 0b0000000000000000,
     o: 0b00000000,
-    status: 0b000000,
-  };
-};
-
-const getStatusFlagMap = (): StatusFlagMap => {
-  return {
-    C: 0b1000000,
-    Z: 0b0100000,
-    I: 0b0010000,
-    D: 0b0001000,
-    B: 0b0000100,
-    O: 0b0000010,
-    N: 0b0000001,
+    status: {
+      C: false,
+      Z: false,
+      I: false,
+      D: false,
+      B: false,
+      O: false,
+      N: false,
+    },
   };
 };
 
@@ -93,14 +86,4 @@ const loadBinFileToMemory = (memory: Memory, fileName: string): Memory => {
   return newMemory;
 };
 
-export {
-  Bus,
-  CpuRegisters,
-  StatusFlagMap,
-  Memory,
-  setupBus,
-  setupCpuRegisters,
-  getStatusFlagMap,
-  setupMemory,
-  loadBinFileToMemory,
-};
+export { Bus, CpuRegisters, Memory, setupBus, setupCpuRegisters, setupMemory, loadBinFileToMemory };

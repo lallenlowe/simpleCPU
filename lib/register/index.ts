@@ -1,7 +1,7 @@
 'use strict';
 
 import { outputToBus } from '../bus';
-import { Bus, CpuRegisters, getStatusFlagMap } from '../initial-state';
+import { Bus, CpuRegisters } from '../initial-state';
 import { ControlWord, baseControl } from '../control';
 import { getLeastSignificantBits } from '../common';
 
@@ -166,36 +166,26 @@ const incrementInstructionCounter = (register: number, controlWord: ControlWord)
   return register + 1;
 };
 
-// return true or false for given flag
-const getStatusFlag = (statusRegister: number, flag: string): boolean => {
-  const flagMap = getStatusFlagMap();
-  const flagValue = statusRegister & flagMap[flag];
-  return flagValue > 0;
-};
-
 // return a new statusRegister
 const setStatusFlag = ({
-  statusRegister,
+  cpuRegisters,
   flagsInput,
   flag,
   value,
 }: {
-  statusRegister: number;
+  cpuRegisters: CpuRegisters;
   flagsInput: boolean;
   flag: string;
   value: boolean;
-}): number => {
+}): CpuRegisters => {
   if (flagsInput) {
-    const flagMap = getStatusFlagMap();
-    if (value) {
-      return statusRegister | flagMap[flag];
-    }
+    const newCpuRegisters = { ...cpuRegisters };
+    newCpuRegisters.status[flag] = value;
 
-    const inverseFlagMap = ~flagMap[flag];
-    return statusRegister & inverseFlagMap;
+    return newCpuRegisters;
   }
 
-  return statusRegister;
+  return cpuRegisters;
 };
 
 export {
@@ -203,6 +193,5 @@ export {
   interfaceAllCPURegisters,
   incrementProgramCounter,
   incrementInstructionCounter,
-  getStatusFlag,
   setStatusFlag,
 };

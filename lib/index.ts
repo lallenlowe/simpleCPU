@@ -2,7 +2,7 @@
 
 import { setupBus, setupCpuRegisters, setupMemory, loadBinFileToMemory } from './initial-state';
 import { incrementProgramCounter, incrementInstructionCounter } from './register';
-import { /*setImmediateFlags,*/ getControlWord } from './control';
+import { setImmediateFlags, getControlWord } from './control';
 import * as alu from './alu';
 import { MachineState, clearBus, interfaceAllRegisters } from './bus';
 
@@ -14,7 +14,7 @@ const cycle = (machineState: MachineState) => {
   // Real busses are cleared just by having no signals output on them
   mainBus = clearBus();
 
-  // cpuRegisters.status = setImmediateFlags(controlWord); // this is a bug, flags should be set conditionally
+  cpuRegisters = setImmediateFlags({ controlWord, cpuRegisters });
 
   cpuRegisters = alu.operate({ registers: cpuRegisters, controlWord });
 

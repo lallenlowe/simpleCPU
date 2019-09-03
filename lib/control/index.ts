@@ -1,7 +1,7 @@
 'use strict';
 
 import _ from 'lodash';
-import { getStatusFlagMap, CpuRegisters } from '../initial-state';
+import { CpuRegisters } from '../initial-state';
 
 type InstructionMap = { [key: string]: number };
 
@@ -9,9 +9,13 @@ const instructionMap: InstructionMap = {
   HLT: 0x00, // Halt the computer, stop the whole program
   OTA: 0x01, // Output the value of the a register
   NOP: 0x02, // No Operation,
+  CLC: 0x18, // Clear the carry flag
   SEC: 0x26, // Set the carry flag
+  CLZ: 0x27, // Clear the carry flag
+  SEZ: 0x28, // Set the carry flag
   JMP: 0x4c, // Jump to the given address
   JMC: 0x4d, // Jump to the given address if the carry flag is set
+  JMZ: 0x4e, // Jump to the given address if the zero flag is set
   ADC: 0x6d, // Add with carry
   CMP: 0xcd, // Compare contents of a register to contents of a memory address
   LDA: 0xa9, // Load the a register with a value from a memory address
@@ -47,10 +51,8 @@ type ControlWord = {
   dE: boolean; // do sum on x and y registers
   fi: boolean; // cpu status flags in
   ht: boolean; // halt the computer
-  if: number; // Cpu status flags to set immediately
+  if: { flag: string; value: boolean }[]; // Cpu status flags to set immediately
 };
-
-type MicroInstructions = Array<ControlWord>;
 
 const baseControl: ControlWord = {
   xi: false, // x register input
@@ -76,22 +78,38 @@ const baseControl: ControlWord = {
   dE: false, // do sum on x and y registers
   fi: false, // cpu status flags in
   ht: false, // halt the computer
-  if: 0b00000000, // immediate flags to set on command
+  if: [], // immediate flags to set on command
 };
+
+type MicroInstructions = Array<ControlWord>;
 
 const loadNextInstruction: MicroInstructions = [
   Object.assign({ ...baseControl }, { pco: true, mi: true }),
   Object.assign({ ...baseControl }, { ro: true, ii: true, pce: true }),
 ];
 
-const newInstructions: { [key: number]: { [key: number]: MicroInstructions } } = {
+const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   [instructionMap.HLT]: { 0: [Object.assign({ ...baseControl }, { ht: true })] },
   [instructionMap.OTA]: { 0: [Object.assign({ ...baseControl }, { ao: true, oi: true })] },
   [instructionMap.NOP]: { 0: [] },
-  [instructionMap.SEC]: { 0: [Object.assign({ ...baseControl }, { if: getStatusFlagMap()['C'] })] },
+  [instructionMap.SEC]: {
+    0: [Object.assign({ ...baseControl }, { if: [{ flag: 'C', value: true }] })],
+  },
+  [instructionMap.CLC]: {
+    0: [Object.assign({ ...baseControl }, { if: [{ flag: 'C', value: false }] })],
+  },
+  [instructionMap.SEZ]: {
+    0: [Object.assign({ ...baseControl }, { if: [{ flag: 'Z', value: true }] })],
+  },
+  [instructionMap.CLZ]: {
+    0: [Object.assign({ ...baseControl }, { if: [{ flag: 'Z', value: false }] })],
+  },
   [instructionMap.JMP]: { 0: [Object.assign({ ...baseControl }, { io: true, pci: true })] },
   [instructionMap.JMC]: {
-    [getStatusFlagMap()['C']]: [Object.assign({ ...baseControl }, { io: true, pci: true })],
+    C: [Object.assign({ ...baseControl }, { io: true, pci: true })],
+  },
+  [instructionMap.JMZ]: {
+    Z: [Object.assign({ ...baseControl }, { io: true, pci: true })],
   },
   [instructionMap.ADC]: {
     0: [
@@ -147,8 +165,19 @@ const newInstructions: { [key: number]: { [key: number]: MicroInstructions } } =
   },
 };
 
-const setImmediateFlags = (controlWord: ControlWord): number => {
-  return controlWord.if;
+const setImmediateFlags = ({
+  controlWord,
+  cpuRegisters,
+}: {
+  controlWord: ControlWord;
+  cpuRegisters: CpuRegisters;
+}): CpuRegisters => {
+  const newCpuRegisters = { ...cpuRegisters };
+  controlWord.if.forEach((flag) => {
+    newCpuRegisters.status[flag.flag] = flag.value;
+  });
+
+  return newCpuRegisters;
 };
 
 const getConditionalInstruction = (
@@ -156,12 +185,12 @@ const getConditionalInstruction = (
   instructionIndex: number,
   counter: number,
 ): ControlWord | boolean => {
-  const conditionalKey = Object.keys(newInstructions[instructionIndex]).find((key) => {
-    return cpuRegisters.status & parseInt(key);
+  const conditionalKey = Object.keys(instructions[instructionIndex]).find((key) => {
+    return cpuRegisters.status[key];
   });
 
   if (conditionalKey) {
-    return _.get(newInstructions, `${instructionIndex}.${conditionalKey}[${counter}]`);
+    return _.get(instructions, `${instructionIndex}.${conditionalKey}[${counter}]`);
   }
 
   return false;
@@ -179,10 +208,11 @@ const getControlWord = (cpuRegisters: CpuRegisters): ControlWord => {
   const instructionIndex = cpuRegisters.i >> 16;
   // get the next word from the instructions array
 
-  const conditionalWord = getConditionalInstruction(cpuRegisters, instructionIndex, counter);
-  const defaultInstruction = _.get(newInstructions, `${instructionIndex}.0[${counter}]`);
-
-  return conditionalWord || defaultInstruction || baseControl;
+  return (
+    getConditionalInstruction(cpuRegisters, instructionIndex, counter) ||
+    _.get(instructions, `${instructionIndex}.0[${counter}]`) ||
+    baseControl
+  );
 };
 
 export { instructionMap, ControlWord, setImmediateFlags, getControlWord, baseControl };

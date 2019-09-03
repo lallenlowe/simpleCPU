@@ -20,21 +20,21 @@ const operate = ({
 // TODO: maybe replace with a full 8 bit adder using bitwise operators?
 const add = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
   if (controlWord.dE) {
-    const newRegisters: CpuRegisters = { ...registers };
+    let newRegisters: CpuRegisters = { ...registers };
 
     let sum = newRegisters.x + newRegisters.y;
 
     if (sum > 0b11111111) {
       sum = 0b11111111;
-      newRegisters.status = setStatusFlag({
-        statusRegister: newRegisters.status,
+      newRegisters = setStatusFlag({
+        cpuRegisters: newRegisters,
         flagsInput: controlWord.fi,
         flag: 'C',
         value: true,
       });
     } else {
-      newRegisters.status = setStatusFlag({
-        statusRegister: newRegisters.status,
+      newRegisters = setStatusFlag({
+        cpuRegisters: newRegisters,
         flagsInput: controlWord.fi,
         flag: 'C',
         value: false,
@@ -50,17 +50,17 @@ const add = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters =>
 
 const compare = (registers: CpuRegisters, controlWord: ControlWord) => {
   if (controlWord.dc) {
-    const newRegisters: CpuRegisters = { ...registers };
+    let newRegisters: CpuRegisters = { ...registers };
     if (registers.x === registers.y) {
-      newRegisters.status = setStatusFlag({
-        statusRegister: newRegisters.status,
+      newRegisters = setStatusFlag({
+        cpuRegisters: newRegisters,
         flagsInput: controlWord.fi,
         flag: 'Z',
         value: true,
       });
     } else {
-      newRegisters.status = setStatusFlag({
-        statusRegister: newRegisters.status,
+      newRegisters = setStatusFlag({
+        cpuRegisters: newRegisters,
         flagsInput: controlWord.fi,
         flag: 'Z',
         value: false,
@@ -68,15 +68,15 @@ const compare = (registers: CpuRegisters, controlWord: ControlWord) => {
     }
 
     if (registers.x >= registers.y) {
-      newRegisters.status = setStatusFlag({
-        statusRegister: newRegisters.status,
+      newRegisters = setStatusFlag({
+        cpuRegisters: newRegisters,
         flagsInput: controlWord.fi,
         flag: 'C',
         value: true,
       });
     } else {
-      newRegisters.status = setStatusFlag({
-        statusRegister: newRegisters.status,
+      newRegisters = setStatusFlag({
+        cpuRegisters: newRegisters,
         flagsInput: controlWord.fi,
         flag: 'C',
         value: false,
