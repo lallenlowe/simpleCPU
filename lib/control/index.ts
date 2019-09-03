@@ -13,6 +13,7 @@ const instructionMap: InstructionMap = {
   JMP: 0x4c, // Jump to the given address
   JMC: 0x4d, // Jump to the given address if the carry flag is set
   ADC: 0x6d, // Add with carry
+  CMP: 0xcd, // Compare contents of a register to contents of a memory address
   LDA: 0xa9, // Load the a register with a value from a memory address
   LDX: 0xa2, // Load the x register with a value from a memory address
   LDY: 0xa0, // Load the y register with a value from a memory address
@@ -98,6 +99,13 @@ const newInstructions: { [key: number]: { [key: number]: MicroInstructions } } =
       Object.assign({ ...baseControl }, { io: true, mi: true }),
       Object.assign({ ...baseControl }, { ro: true, yi: true, dE: true, fi: true }),
       Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.CMP]: {
+    0: [
+      Object.assign({ ...baseControl }, { ao: true, xi: true }),
+      Object.assign({ ...baseControl }, { io: true, mi: true }),
+      Object.assign({ ...baseControl }, { ro: true, yi: true, dc: true, fi: true }),
     ],
   },
   [instructionMap.LDA]: {
