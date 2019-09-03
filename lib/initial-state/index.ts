@@ -82,9 +82,6 @@ const loadBinFileToMemory = (memory: Memory, fileName: string): Memory => {
   const newMemory = { ...memory };
   const file = fs.readFileSync(fileName, { encoding: 'hex' });
   const chunks = file.match(/.{10}/g) || [];
-  // const memoryContents = chunks.map((str) => {
-  //   return parseInt(str, 16);
-  // });
   const memoryContents: number[] = [];
   chunks.forEach((chunk) => {
     const index = parseInt(chunk.slice(0, 4), 16);
@@ -92,8 +89,6 @@ const loadBinFileToMemory = (memory: Memory, fileName: string): Memory => {
   });
 
   newMemory.data = memoryContents;
-  // newMemory.data[15] = 16;
-  // newMemory.data[16] = 54;
 
   return newMemory;
 };

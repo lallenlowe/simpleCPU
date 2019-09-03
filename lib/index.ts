@@ -2,16 +2,19 @@
 
 import { setupBus, setupCpuRegisters, setupMemory, loadBinFileToMemory } from './initial-state';
 import { incrementProgramCounter, incrementInstructionCounter } from './register';
-import { setImmediateFlags, getControlWord } from './control';
+import { /*setImmediateFlags,*/ getControlWord } from './control';
 import * as alu from './alu';
 import { MachineState, clearBus, interfaceAllRegisters } from './bus';
 
 const cycle = (machineState: MachineState) => {
-  const controlWord = getControlWord(machineState.cpuRegisters.i, machineState.cpuRegisters.ic);
+  const controlWord = getControlWord(machineState.cpuRegisters);
 
   let { cpuRegisters, mainBus, systemMemory } = interfaceAllRegisters(machineState, controlWord);
 
-  cpuRegisters.status = setImmediateFlags(controlWord); // this is a bug, flags should be set conditionally
+  // Real busses are cleared just by having no signals output on them
+  mainBus = clearBus();
+
+  // cpuRegisters.status = setImmediateFlags(controlWord); // this is a bug, flags should be set conditionally
 
   cpuRegisters = alu.operate({ registers: cpuRegisters, controlWord });
 
@@ -19,15 +22,13 @@ const cycle = (machineState: MachineState) => {
 
   cpuRegisters.ic = incrementInstructionCounter(cpuRegisters.ic, controlWord);
 
-  mainBus = clearBus();
-
   if (controlWord.oi) {
     console.log(cpuRegisters.o);
   }
 
   const newMachineState: MachineState = { cpuRegisters, mainBus, systemMemory };
   if (!controlWord.ht) {
-    setImmediate(() => cycle(newMachineState));
+    setTimeout(() => cycle(newMachineState), 10);
   } else {
     console.log(newMachineState);
   }

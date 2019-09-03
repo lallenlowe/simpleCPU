@@ -10,41 +10,83 @@ const operate = ({
 }: {
   registers: CpuRegisters;
   controlWord: ControlWord;
-}) => {
-  let newRegisters = add(registers);
-  newRegisters = compare(newRegisters, controlWord.co);
+}): CpuRegisters => {
+  let newRegisters = add(registers, controlWord);
+  newRegisters = compare(newRegisters, controlWord);
 
   return newRegisters;
 };
 
 // TODO: maybe replace with a full 8 bit adder using bitwise operators?
-const add = (registers: CpuRegisters) => {
-  const newRegisters: CpuRegisters = { ...registers };
+const add = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+  if (controlWord.dE) {
+    const newRegisters: CpuRegisters = { ...registers };
 
-  newRegisters.s = newRegisters.x + newRegisters.y;
+    let sum = newRegisters.x + newRegisters.y;
 
-  return newRegisters;
+    if (sum > 0b11111111) {
+      sum = 0b11111111;
+      newRegisters.status = setStatusFlag({
+        statusRegister: newRegisters.status,
+        flagsInput: controlWord.fi,
+        flag: 'C',
+        value: true,
+      });
+    } else {
+      newRegisters.status = setStatusFlag({
+        statusRegister: newRegisters.status,
+        flagsInput: controlWord.fi,
+        flag: 'C',
+        value: false,
+      });
+    }
+    newRegisters.s = sum;
+
+    return newRegisters;
+  }
+
+  return registers;
 };
 
-const compare = (registers: CpuRegisters, compareOut: boolean) => {
-  const newRegisters: CpuRegisters = { ...registers };
-  if (compareOut && registers.x === registers.y) {
-    newRegisters.status = setStatusFlag({
-      statusRegister: newRegisters.status,
-      flag: 'Z',
-      value: true,
-    });
+const compare = (registers: CpuRegisters, controlWord: ControlWord) => {
+  if (controlWord.dc) {
+    const newRegisters: CpuRegisters = { ...registers };
+    if (registers.x === registers.y) {
+      newRegisters.status = setStatusFlag({
+        statusRegister: newRegisters.status,
+        flagsInput: controlWord.fi,
+        flag: 'Z',
+        value: true,
+      });
+    } else {
+      newRegisters.status = setStatusFlag({
+        statusRegister: newRegisters.status,
+        flagsInput: controlWord.fi,
+        flag: 'Z',
+        value: false,
+      });
+    }
+
+    if (registers.x >= registers.y) {
+      newRegisters.status = setStatusFlag({
+        statusRegister: newRegisters.status,
+        flagsInput: controlWord.fi,
+        flag: 'C',
+        value: true,
+      });
+    } else {
+      newRegisters.status = setStatusFlag({
+        statusRegister: newRegisters.status,
+        flagsInput: controlWord.fi,
+        flag: 'C',
+        value: false,
+      });
+    }
+
+    return newRegisters;
   }
 
-  if (compareOut && registers.x >= registers.y) {
-    newRegisters.status = setStatusFlag({
-      statusRegister: newRegisters.status,
-      flag: 'C',
-      value: true,
-    });
-  }
-
-  return newRegisters;
+  return registers;
 };
 
 export { operate };

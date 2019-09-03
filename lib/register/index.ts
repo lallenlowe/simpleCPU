@@ -176,20 +176,26 @@ const getStatusFlag = (statusRegister: number, flag: string): boolean => {
 // return a new statusRegister
 const setStatusFlag = ({
   statusRegister,
+  flagsInput,
   flag,
   value,
 }: {
   statusRegister: number;
+  flagsInput: boolean;
   flag: string;
   value: boolean;
 }): number => {
-  const flagMap = getStatusFlagMap();
-  if (value) {
-    return statusRegister | flagMap[flag];
+  if (flagsInput) {
+    const flagMap = getStatusFlagMap();
+    if (value) {
+      return statusRegister | flagMap[flag];
+    }
+
+    const inverseFlagMap = ~flagMap[flag];
+    return statusRegister & inverseFlagMap;
   }
 
-  const inverseFlagMap = ~flagMap[flag];
-  return statusRegister & inverseFlagMap;
+  return statusRegister;
 };
 
 export {
