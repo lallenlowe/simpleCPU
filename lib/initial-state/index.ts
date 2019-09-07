@@ -5,7 +5,8 @@ import * as fs from 'fs';
 type Byte = boolean[];
 
 type Bus = {
-  data: number; // 16 bit
+  address: number; // 16 bit
+  data: number; // 8 bit
 };
 
 type CpuRegisters = {
@@ -16,7 +17,7 @@ type CpuRegisters = {
   i: number; // instruction register
   ic: number; // instruction counter
   pc: number; // 16 bit program counter
-  sp: number; // 16 bit stack pointer
+  sp: number; // 8 bit stack pointer
   o: number; // 8 bit output register
   status: {
     [C: string]: boolean; // Carry
@@ -36,7 +37,8 @@ type Memory = {
 
 const setupBus = (): Bus => {
   return {
-    data: 0b0000000000000000,
+    address: 0b0000000000000000,
+    data: 0b00000000,
   };
 };
 
@@ -49,7 +51,7 @@ const setupCpuRegisters = (): CpuRegisters => {
     i: 0b0000000000000000,
     ic: 0b00000000,
     pc: 0b0000000000000000,
-    sp: 0b0000000000000000,
+    sp: 0b00000000,
     o: 0b00000000,
     status: {
       C: false,

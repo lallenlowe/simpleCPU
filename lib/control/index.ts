@@ -19,6 +19,7 @@ const instructionMap: InstructionMap = {
   ADC: 0x6d, // Add with carry
   CMP: 0xcd, // Compare contents of a register to contents of a memory address
   LDA: 0xa9, // Load the a register with a value from a memory address
+  LDAA: 0xad, // Load the a register with a value from absolute memory address
   LDX: 0xa2, // Load the x register with a value from a memory address
   LDY: 0xa0, // Load the y register with a value from a memory address
   TSA: 0xaa, // Transfer the value of sum to the a register
@@ -37,6 +38,10 @@ type ControlWord = {
   so: boolean; // sum register output
   ii: boolean; // instruction register input
   io: boolean; // instruction register output
+  idi: boolean; // instruction register output to data bus
+  iai: boolean; // instruction register output to address bus
+  ido: boolean; // instruction register output to data bus
+  iao: boolean; // instruction register output to address bus
   pci: boolean; // program counter input
   pco: boolean; // program counter output
   pce: boolean; // program counter enable
@@ -64,6 +69,10 @@ const baseControl: ControlWord = {
   so: false, // sum register output
   ii: false, // instruction register input
   io: false, // instruction register output
+  idi: false, // instruction register output to data bus
+  iai: false, // instruction register output to address bus
+  ido: false, // instruction register output to data bus
+  iao: false, // instruction register output to address bus
   pci: false, // program counter input
   pco: false, // program counter output
   pce: false, // program counter enable
@@ -129,6 +138,12 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   [instructionMap.LDA]: {
     0: [
       Object.assign({ ...baseControl }, { io: true, mi: true }),
+      Object.assign({ ...baseControl }, { ro: true, ai: true }),
+    ],
+  },
+  [instructionMap.LDAA]: {
+    0: [
+      Object.assign({ ...baseControl }, { iao: true, mi: true }),
       Object.assign({ ...baseControl }, { ro: true, ai: true }),
     ],
   },

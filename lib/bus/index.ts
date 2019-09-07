@@ -18,6 +18,20 @@ const outputToBus = ({ bus, data }: { bus: Bus; data: number }) => {
   return newBus;
 };
 
+const outputToBusData = ({ bus, data }: { bus: Bus; data: number }) => {
+  const newBus = { ...bus };
+  newBus.data |= data;
+
+  return newBus;
+};
+
+const outputToBusAddress = ({ bus, address }: { bus: Bus; address: number }) => {
+  const newBus = { ...bus };
+  newBus.address |= address;
+
+  return newBus;
+};
+
 const clearBus = setupBus;
 
 const interfaceAllRegisters = (
@@ -63,4 +77,4 @@ const interfaceAllRegisters = (
   return { cpuRegisters, mainBus, systemMemory };
 };
 
-export { MachineState, interfaceAllRegisters, outputToBus, clearBus };
+export { MachineState, interfaceAllRegisters, outputToBus, outputToBusAddress, outputToBusData, clearBus };

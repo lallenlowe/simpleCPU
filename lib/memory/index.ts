@@ -1,6 +1,6 @@
 'use strict';
 
-import { outputToBus } from '../bus';
+import { outputToBusAddress, outputToBusData } from '../bus';
 import { Bus, Memory } from '../initial-state';
 import { ControlWord } from '../control';
 
@@ -36,16 +36,16 @@ const interfaceMemoryData = ({ bus, memory, output, input }: MemoryInterface) =>
 
 const interfaceMemoryAddress = ({ bus, memory, output, input }: MemoryInterface) => {
   if (output) {
-    const newBus = outputToBus({
+    const newBus = outputToBusAddress({
       bus,
-      data: memory.addressRegister,
+      address: memory.addressRegister,
     });
     return { bus: newBus, memory };
   }
 
   if (input) {
     const newMemory = { ...memory };
-    newMemory.addressRegister = bus.data;
+    newMemory.addressRegister = bus.address;
     return { bus, memory: newMemory };
   }
 
