@@ -2,8 +2,8 @@
 
 import { Bus, CpuRegisters, Memory, setupBus } from '../initial-state';
 import { ControlWord } from '../control';
-import { interfaceMemory } from '../memory';
-import { interfaceAllCPURegisters } from '../register';
+import { interfaceMemoryAddress, interfaceMemoryData } from '../memory';
+import { interfaceAllCPUAddressRegisters, interfaceAllCPUDataRegisters } from '../register';
 
 type MachineState = {
   cpuRegisters: CpuRegisters;
@@ -11,21 +11,14 @@ type MachineState = {
   systemMemory: Memory;
 };
 
-const outputToBus = ({ bus, data }: { bus: Bus; data: number }) => {
+const outputToDataBus = ({ bus, data }: { bus: Bus; data: number }) => {
   const newBus = { ...bus };
   newBus.data |= data;
 
   return newBus;
 };
 
-const outputToBusData = ({ bus, data }: { bus: Bus; data: number }) => {
-  const newBus = { ...bus };
-  newBus.data |= data;
-
-  return newBus;
-};
-
-const outputToBusAddress = ({ bus, address }: { bus: Bus; address: number }) => {
+const outputToAddressBus = ({ bus, address }: { bus: Bus; address: number }) => {
   const newBus = { ...bus };
   newBus.address |= address;
 
@@ -39,9 +32,8 @@ const interfaceAllRegisters = (
   controlWord: ControlWord,
 ): MachineState => {
   let { cpuRegisters, mainBus, systemMemory } = machineState;
-
   /* Output pass first since real hardware is parallel and this is synchronous */
-  ({ bus: mainBus, registers: cpuRegisters } = interfaceAllCPURegisters({
+  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllCPUAddressRegisters({
     bus: mainBus,
     registers: cpuRegisters,
     output: true,
@@ -49,16 +41,15 @@ const interfaceAllRegisters = (
     controlWord,
   }));
 
-  ({ bus: mainBus, memory: systemMemory } = interfaceMemory({
+  ({ bus: mainBus, memory: systemMemory } = interfaceMemoryAddress({
     bus: mainBus,
     memory: systemMemory,
-    output: true,
-    input: false,
-    controlWord,
+    output: true && controlWord.mo,
+    input: false && controlWord.mi,
   }));
 
   /* Input pass next since real hardware is parallel and this is synchronous */
-  ({ bus: mainBus, registers: cpuRegisters } = interfaceAllCPURegisters({
+  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllCPUAddressRegisters({
     bus: mainBus,
     registers: cpuRegisters,
     output: false,
@@ -66,15 +57,46 @@ const interfaceAllRegisters = (
     controlWord,
   }));
 
-  ({ bus: mainBus, memory: systemMemory } = interfaceMemory({
+  ({ bus: mainBus, memory: systemMemory } = interfaceMemoryAddress({
     bus: mainBus,
     memory: systemMemory,
+    output: false && controlWord.mo,
+    input: true && controlWord.mi,
+  }));
+
+  /* Another output pass since we have 2 busses, data and address */
+  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllCPUDataRegisters({
+    bus: mainBus,
+    registers: cpuRegisters,
+    output: true,
+    input: false,
+    controlWord,
+  }));
+
+  ({ bus: mainBus, memory: systemMemory } = interfaceMemoryData({
+    bus: mainBus,
+    memory: systemMemory,
+    output: true && controlWord.ro,
+    input: false && controlWord.ri,
+  }));
+
+  /* Another input pass since we have 2 busses, data and address */
+  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllCPUDataRegisters({
+    bus: mainBus,
+    registers: cpuRegisters,
     output: false,
     input: true,
     controlWord,
+  }));
+
+  ({ bus: mainBus, memory: systemMemory } = interfaceMemoryData({
+    bus: mainBus,
+    memory: systemMemory,
+    output: false && controlWord.ro,
+    input: true && controlWord.ri,
   }));
 
   return { cpuRegisters, mainBus, systemMemory };
 };
 
-export { MachineState, interfaceAllRegisters, outputToBus, outputToBusAddress, outputToBusData, clearBus };
+export { MachineState, interfaceAllRegisters, outputToAddressBus, outputToDataBus, clearBus };

@@ -18,8 +18,9 @@ const instructionMap: InstructionMap = {
   JMZ: 0x4e, // Jump to the given address if the zero flag is set
   ADC: 0x6d, // Add with carry
   CMP: 0xcd, // Compare contents of a register to contents of a memory address
-  LDA: 0xa9, // Load the a register with a value from a memory address
+  //LDA: 0xa9, // Load the a register with a value from a memory address
   LDAA: 0xad, // Load the a register with a value from absolute memory address
+  LDAI: 0xa9,
   LDX: 0xa2, // Load the x register with a value from a memory address
   LDY: 0xa0, // Load the y register with a value from a memory address
   TSA: 0xaa, // Transfer the value of sum to the a register
@@ -29,29 +30,27 @@ const instructionMap: InstructionMap = {
 };
 
 type ControlWord = {
-  xi: boolean; // x register input
-  xo: boolean; // x register output
-  yi: boolean; // y register input
-  yo: boolean; // y register output
-  ai: boolean; // a register input
-  ao: boolean; // a register output
-  so: boolean; // sum register output
-  ii: boolean; // instruction register input
-  io: boolean; // instruction register output
-  idi: boolean; // instruction register output to data bus
-  iai: boolean; // instruction register output to address bus
+  xi: boolean; // x register input from data bus
+  xo: boolean; // x register output to data bus
+  yi: boolean; // y register input from data bus
+  yo: boolean; // y register output to data bus
+  ai: boolean; // a register input from data bus
+  ao: boolean; // a register output to data bus
+  so: boolean; // sum register output to data bus
+  idi: boolean; // instruction register input from data bus
+  iai: boolean; // instruction register input from address bus
   ido: boolean; // instruction register output to data bus
   iao: boolean; // instruction register output to address bus
-  pci: boolean; // program counter input
-  pco: boolean; // program counter output
+  pcai: boolean; // program counter input from address bus
+  pco: boolean; // program counter output to address bus
   pce: boolean; // program counter enable
-  spi: boolean; // stack pointer input
-  spo: boolean; // stack pointer output
-  mi: boolean; // memory address register input
-  mo: boolean; // memory address register output
-  ri: boolean; // ram data input
-  ro: boolean; // ram data output
-  oi: boolean; // output register in
+  spi: boolean; // stack pointer input from address bus
+  spo: boolean; // stack pointer output to address bus
+  mi: boolean; // memory address register input from address bus
+  mo: boolean; // memory address register output to address bus
+  ri: boolean; // ram data input from data bus
+  ro: boolean; // ram data output to data bus
+  oi: boolean; // output register in from data bus
   dc: boolean; // do compare x and y registers
   dE: boolean; // do sum on x and y registers
   fi: boolean; // cpu status flags in
@@ -60,41 +59,38 @@ type ControlWord = {
 };
 
 const baseControl: ControlWord = {
-  xi: false, // x register input
-  xo: false, // x register output
-  yi: false, // y register input
-  yo: false, // y register output
-  ai: false, // a register input
-  ao: false, // a register output
-  so: false, // sum register output
-  ii: false, // instruction register input
-  io: false, // instruction register output
-  idi: false, // instruction register output to data bus
-  iai: false, // instruction register output to address bus
+  xi: false, // x register input from data bus
+  xo: false, // x register output to data bus
+  yi: false, // y register input from data bus
+  yo: false, // y register output to data bus
+  ai: false, // a register input from data bus
+  ao: false, // a register output to data bus
+  so: false, // sum register output to data bus
+  idi: false, // instruction register input from data bus
+  iai: false, // instruction register input from address bus
   ido: false, // instruction register output to data bus
   iao: false, // instruction register output to address bus
-  pci: false, // program counter input
-  pco: false, // program counter output
+  pcai: false, // program counter input from address bus
+  pco: false, // program counter output to address bus
   pce: false, // program counter enable
-  spi: false, // stack pointer input
-  spo: false, // stack pointer output
-  mi: false, // memory address register input
-  mo: false, // memory address register output
-  ri: false, // ram data input
-  ro: false, // ram data output
-  oi: false, // output register in
+  spi: false, // stack pointer input from address bus
+  spo: false, // stack pointer output to address bus
+  mi: false, // memory address register input from address bus
+  mo: false, // memory address register output to address bus
+  ri: false, // ram data input from data bus
+  ro: false, // ram data output to data bus
+  oi: false, // output register in from data bus
   dc: false, // do compare x and y registers
   dE: false, // do sum on x and y registers
   fi: false, // cpu status flags in
   ht: false, // halt the computer
-  if: [], // immediate flags to set on command
+  if: [], // Cpu status flags to set immediately
 };
 
 type MicroInstructions = Array<ControlWord>;
 
 const loadNextInstruction: MicroInstructions = [
-  Object.assign({ ...baseControl }, { pco: true, mi: true }),
-  Object.assign({ ...baseControl }, { ro: true, ii: true, pce: true }),
+  Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, idi: true, pce: true }),
 ];
 
 const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
@@ -113,17 +109,17 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   [instructionMap.CLZ]: {
     0: [Object.assign({ ...baseControl }, { if: [{ flag: 'Z', value: false }] })],
   },
-  [instructionMap.JMP]: { 0: [Object.assign({ ...baseControl }, { io: true, pci: true })] },
+  [instructionMap.JMP]: { 0: [Object.assign({ ...baseControl }, { iao: true, pcai: true })] },
   [instructionMap.JMC]: {
-    C: [Object.assign({ ...baseControl }, { io: true, pci: true })],
+    C: [Object.assign({ ...baseControl }, { iao: true, pcai: true })],
   },
   [instructionMap.JMZ]: {
-    Z: [Object.assign({ ...baseControl }, { io: true, pci: true })],
+    Z: [Object.assign({ ...baseControl }, { iao: true, pcai: true })],
   },
   [instructionMap.ADC]: {
     0: [
       Object.assign({ ...baseControl }, { ao: true, xi: true }),
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
+      Object.assign({ ...baseControl }, { iao: true, mi: true }),
       Object.assign({ ...baseControl }, { ro: true, yi: true, dE: true, fi: true }),
       Object.assign({ ...baseControl }, { so: true, ai: true }),
     ],
@@ -131,13 +127,13 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   [instructionMap.CMP]: {
     0: [
       Object.assign({ ...baseControl }, { ao: true, xi: true }),
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
+      Object.assign({ ...baseControl }, { iao: true, mi: true }),
       Object.assign({ ...baseControl }, { ro: true, yi: true, dc: true, fi: true }),
     ],
   },
   [instructionMap.LDA]: {
     0: [
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
+      Object.assign({ ...baseControl }, { iao: true, mi: true }),
       Object.assign({ ...baseControl }, { ro: true, ai: true }),
     ],
   },
@@ -147,34 +143,37 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
       Object.assign({ ...baseControl }, { ro: true, ai: true }),
     ],
   },
+  [instructionMap.LDAI]: {
+    0: [Object.assign({ ...baseControl }, { ido: true, ai: true })],
+  },
   [instructionMap.LDX]: {
     0: [
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
+      Object.assign({ ...baseControl }, { iao: true, mi: true }),
       Object.assign({ ...baseControl }, { ro: true, xi: true }),
     ],
   },
   [instructionMap.LDY]: {
     0: [
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
+      Object.assign({ ...baseControl }, { iao: true, mi: true }),
       Object.assign({ ...baseControl }, { ro: true, yi: true }),
     ],
   },
   [instructionMap.TSA]: { 0: [Object.assign({ ...baseControl }, { so: true, ai: true })] },
   [instructionMap.STA]: {
     0: [
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
+      Object.assign({ ...baseControl }, { iao: true, mi: true }),
       Object.assign({ ...baseControl }, { ao: true, ri: true }),
     ],
   },
   [instructionMap.STX]: {
     0: [
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
+      Object.assign({ ...baseControl }, { iao: true, mi: true }),
       Object.assign({ ...baseControl }, { xo: true, ri: true }),
     ],
   },
   [instructionMap.STY]: {
     0: [
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
+      Object.assign({ ...baseControl }, { iao: true, mi: true }),
       Object.assign({ ...baseControl }, { yo: true, ri: true }),
     ],
   },
@@ -213,12 +212,12 @@ const getConditionalInstruction = (
 
 const getControlWord = (cpuRegisters: CpuRegisters): ControlWord => {
   // always load next instruction from ram into instruction register, takes 2 cycles
-  if (cpuRegisters.ic < 2) {
+  if (cpuRegisters.ic < 1) {
     return loadNextInstruction[cpuRegisters.ic];
   }
 
-  // subtract 2 from counter to compensate for the 2 load instruction cycles
-  const counter = cpuRegisters.ic - 2;
+  // subtract 1 from counter to compensate for the 1 load instruction cycle
+  const counter = cpuRegisters.ic - 1;
   // only use the most significant 8 bits of the instruction since those represent the instruction itself not the data
   const instructionIndex = cpuRegisters.i >> 16;
   // get the next word from the instructions array

@@ -1,6 +1,6 @@
 'use strict';
 
-import { outputToBus } from '../bus';
+import { outputToAddressBus, outputToDataBus } from '../bus';
 import { Bus, CpuRegisters } from '../initial-state';
 import { ControlWord, baseControl } from '../control';
 import { getLeastSignificantBits } from '../common';
@@ -30,14 +30,32 @@ type CpuRegistersInterfaceOutput = {
   registers: CpuRegisters;
 };
 
-const interfaceRegister = ({
+const interfaceRegisterAddress = ({
   bus,
   register,
   output,
   input,
 }: RegisterInterface): RegisterInterfaceOutput => {
   if (output) {
-    const newBus = outputToBus({ bus, data: register });
+    const newBus = outputToAddressBus({ bus, address: register });
+    return { bus: newBus, register };
+  }
+
+  if (input) {
+    return { bus, register: bus.address };
+  }
+
+  return { bus, register };
+};
+
+const interfaceRegisterData = ({
+  bus,
+  register,
+  output,
+  input,
+}: RegisterInterface): RegisterInterfaceOutput => {
+  if (output) {
+    const newBus = outputToDataBus({ bus, data: register });
     return { bus: newBus, register };
   }
 
@@ -48,7 +66,7 @@ const interfaceRegister = ({
   return { bus, register };
 };
 
-const interfaceInstructionRegister = ({
+const interfaceInstructionRegisterAddress = ({
   bus,
   register,
   output,
@@ -57,7 +75,27 @@ const interfaceInstructionRegister = ({
   if (output) {
     // only put the instruction data bits on the bus
     const registerSlice = getLeastSignificantBits(register, 16);
-    const newBus = outputToBus({ bus, data: registerSlice });
+    const newBus = outputToAddressBus({ bus, address: registerSlice });
+    return { bus: newBus, register };
+  }
+
+  if (input) {
+    return { bus, register: bus.address };
+  }
+
+  return { bus, register };
+};
+
+const interfaceInstructionRegisterData = ({
+  bus,
+  register,
+  output,
+  input,
+}: RegisterInterface): RegisterInterfaceOutput => {
+  if (output) {
+    // only put the instruction data bits on the bus
+    const registerSlice = getLeastSignificantBits(register, 16);
+    const newBus = outputToDataBus({ bus, data: registerSlice });
     return { bus: newBus, register };
   }
 
@@ -68,7 +106,7 @@ const interfaceInstructionRegister = ({
   return { bus, register };
 };
 
-const interfaceAllCPURegisters = ({
+const interfaceAllCPUAddressRegisters = ({
   bus,
   registers,
   output,
@@ -77,56 +115,76 @@ const interfaceAllCPURegisters = ({
 }: CpuRegistersInterface): CpuRegistersInterfaceOutput => {
   const cpuRegisters = { ...registers };
   let mainBus = { ...bus };
-  ({ bus: mainBus, register: cpuRegisters.x } = interfaceRegister({
-    bus: mainBus,
-    register: cpuRegisters.x,
-    output: output && controlWord.xo,
-    input: input && controlWord.xi,
-  }));
 
-  ({ bus: mainBus, register: cpuRegisters.y } = interfaceRegister({
-    bus: mainBus,
-    register: cpuRegisters.y,
-    output: output && controlWord.yo,
-    input: input && controlWord.yi,
-  }));
-
-  ({ bus: mainBus, register: cpuRegisters.a } = interfaceRegister({
-    bus: mainBus,
-    register: cpuRegisters.a,
-    output: output && controlWord.ao,
-    input: input && controlWord.ai,
-  }));
-
-  ({ bus: mainBus, register: cpuRegisters.s } = interfaceRegister({
-    bus: mainBus,
-    register: cpuRegisters.s,
-    output: output && controlWord.so,
-    input: input && false,
-  }));
-
-  ({ bus: mainBus, register: cpuRegisters.i } = interfaceInstructionRegister({
+  ({ bus: mainBus, register: cpuRegisters.i } = interfaceInstructionRegisterAddress({
     bus: mainBus,
     register: cpuRegisters.i,
-    output: output && controlWord.io,
-    input: input && controlWord.ii,
+    output: output && controlWord.iao,
+    input: input && controlWord.iai,
   }));
 
-  ({ bus: mainBus, register: cpuRegisters.pc } = interfaceRegister({
+  ({ bus: mainBus, register: cpuRegisters.pc } = interfaceRegisterAddress({
     bus: mainBus,
     register: cpuRegisters.pc,
     output: output && controlWord.pco,
-    input: input && controlWord.pci,
+    input: input && controlWord.pcai,
   }));
 
-  ({ bus: mainBus, register: cpuRegisters.sp } = interfaceRegister({
+  ({ bus: mainBus, register: cpuRegisters.sp } = interfaceRegisterAddress({
     bus: mainBus,
     register: cpuRegisters.sp,
     output: output && controlWord.spo,
     input: input && controlWord.spi,
   }));
 
-  ({ bus: mainBus, register: cpuRegisters.o } = interfaceRegister({
+  return { bus: mainBus, registers: cpuRegisters };
+};
+
+const interfaceAllCPUDataRegisters = ({
+  bus,
+  registers,
+  output,
+  input,
+  controlWord,
+}: CpuRegistersInterface): CpuRegistersInterfaceOutput => {
+  const cpuRegisters = { ...registers };
+  let mainBus = { ...bus };
+  ({ bus: mainBus, register: cpuRegisters.x } = interfaceRegisterData({
+    bus: mainBus,
+    register: cpuRegisters.x,
+    output: output && controlWord.xo,
+    input: input && controlWord.xi,
+  }));
+
+  ({ bus: mainBus, register: cpuRegisters.y } = interfaceRegisterData({
+    bus: mainBus,
+    register: cpuRegisters.y,
+    output: output && controlWord.yo,
+    input: input && controlWord.yi,
+  }));
+
+  ({ bus: mainBus, register: cpuRegisters.a } = interfaceRegisterData({
+    bus: mainBus,
+    register: cpuRegisters.a,
+    output: output && controlWord.ao,
+    input: input && controlWord.ai,
+  }));
+
+  ({ bus: mainBus, register: cpuRegisters.s } = interfaceRegisterData({
+    bus: mainBus,
+    register: cpuRegisters.s,
+    output: output && controlWord.so,
+    input: input && false,
+  }));
+
+  ({ bus: mainBus, register: cpuRegisters.i } = interfaceInstructionRegisterData({
+    bus: mainBus,
+    register: cpuRegisters.i,
+    output: output && controlWord.ido,
+    input: input && controlWord.idi,
+  }));
+
+  ({ bus: mainBus, register: cpuRegisters.o } = interfaceRegisterData({
     bus: mainBus,
     register: cpuRegisters.o,
     output: output && false,
@@ -154,7 +212,7 @@ const incrementInstructionCounter = (register: number, controlWord: ControlWord)
     return 0b000; // reset the instruction counter if we get an empty control word in order to save extra CPU cycles
   }
 
-  if (controlWord.pci) {
+  if (controlWord.pcai) {
     return 0b000; // reset the instruction counter if the program counter was set on this cycle
   }
 
@@ -189,8 +247,10 @@ const setStatusFlag = ({
 };
 
 export {
-  interfaceRegister,
-  interfaceAllCPURegisters,
+  interfaceRegisterAddress,
+  interfaceRegisterData,
+  interfaceAllCPUAddressRegisters,
+  interfaceAllCPUDataRegisters,
   incrementProgramCounter,
   incrementInstructionCounter,
   setStatusFlag,

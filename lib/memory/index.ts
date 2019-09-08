@@ -1,8 +1,7 @@
 'use strict';
 
-import { outputToBusAddress, outputToBusData } from '../bus';
+import { outputToAddressBus, outputToDataBus } from '../bus';
 import { Bus, Memory } from '../initial-state';
-import { ControlWord } from '../control';
 
 type MemoryInterface = {
   bus: Bus;
@@ -11,17 +10,9 @@ type MemoryInterface = {
   input: boolean;
 };
 
-type MemoryControlInterface = {
-  bus: Bus;
-  memory: Memory;
-  output: boolean;
-  input: boolean;
-  controlWord: ControlWord;
-};
-
 const interfaceMemoryData = ({ bus, memory, output, input }: MemoryInterface) => {
   if (output) {
-    const newBus = outputToBus({ bus, data: memory.data[memory.addressRegister] });
+    const newBus = outputToDataBus({ bus, data: memory.data[memory.addressRegister] });
     return { bus: newBus, memory };
   }
 
@@ -36,7 +27,7 @@ const interfaceMemoryData = ({ bus, memory, output, input }: MemoryInterface) =>
 
 const interfaceMemoryAddress = ({ bus, memory, output, input }: MemoryInterface) => {
   if (output) {
-    const newBus = outputToBusAddress({
+    const newBus = outputToAddressBus({
       bus,
       address: memory.addressRegister,
     });
@@ -52,25 +43,4 @@ const interfaceMemoryAddress = ({ bus, memory, output, input }: MemoryInterface)
   return { bus, memory };
 };
 
-const interfaceMemory = ({ bus, memory, output, input, controlWord }: MemoryControlInterface) => {
-  let systemMemory = { ...memory };
-  let mainBus = { ...bus };
-
-  ({ bus: mainBus, memory: systemMemory } = interfaceMemoryAddress({
-    bus: mainBus,
-    memory: systemMemory,
-    output: output && controlWord.mo,
-    input: input && controlWord.mi,
-  }));
-
-  ({ bus: mainBus, memory: systemMemory } = interfaceMemoryData({
-    bus: mainBus,
-    memory: systemMemory,
-    output: output && controlWord.ro,
-    input: input && controlWord.ri,
-  }));
-
-  return { bus: mainBus, memory: systemMemory };
-};
-
-export { interfaceMemory, interfaceMemoryData, interfaceMemoryAddress };
+export { interfaceMemoryData, interfaceMemoryAddress };
