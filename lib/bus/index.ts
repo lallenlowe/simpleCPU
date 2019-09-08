@@ -44,8 +44,9 @@ const interfaceAllRegisters = (
   ({ bus: mainBus, memory: systemMemory } = interfaceMemoryAddress({
     bus: mainBus,
     memory: systemMemory,
-    output: true && controlWord.mo,
-    input: false && controlWord.mi,
+    output: true,
+    input: false,
+    controlWord,
   }));
 
   /* Input pass next since real hardware is parallel and this is synchronous */
@@ -60,8 +61,9 @@ const interfaceAllRegisters = (
   ({ bus: mainBus, memory: systemMemory } = interfaceMemoryAddress({
     bus: mainBus,
     memory: systemMemory,
-    output: false && controlWord.mo,
-    input: true && controlWord.mi,
+    output: false,
+    input: true,
+    controlWord,
   }));
 
   /* Another output pass since we have 2 busses, data and address */
@@ -76,8 +78,9 @@ const interfaceAllRegisters = (
   ({ bus: mainBus, memory: systemMemory } = interfaceMemoryData({
     bus: mainBus,
     memory: systemMemory,
-    output: true && controlWord.ro,
-    input: false && controlWord.ri,
+    output: true,
+    input: false,
+    controlWord,
   }));
 
   /* Another input pass since we have 2 busses, data and address */
@@ -92,8 +95,9 @@ const interfaceAllRegisters = (
   ({ bus: mainBus, memory: systemMemory } = interfaceMemoryData({
     bus: mainBus,
     memory: systemMemory,
-    output: false && controlWord.ro,
-    input: true && controlWord.ri,
+    output: false,
+    input: true,
+    controlWord,
   }));
 
   return { cpuRegisters, mainBus, systemMemory };
