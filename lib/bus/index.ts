@@ -3,7 +3,7 @@
 import { Bus, CpuRegisters, Memory, setupBus } from '../initial-state';
 import { ControlWord } from '../control';
 import { interfaceMemoryAddress, interfaceMemoryData } from '../memory';
-import { interfaceAllCPUAddressRegisters, interfaceAllCPUDataRegisters } from '../register';
+import { interfaceAllAddressRegisters, interfaceAllDataRegisters } from '../register';
 
 type MachineState = {
   cpuRegisters: CpuRegisters;
@@ -18,22 +18,63 @@ const outputToDataBus = ({ bus, data }: { bus: Bus; data: number }) => {
   return newBus;
 };
 
-const outputToAddressBus = ({ bus, address }: { bus: Bus; address: number }) => {
+const outputToAddressBus = ({ bus, address }: { bus: Bus; address: number }): Bus => {
   const newBus = { ...bus };
   newBus.address |= address;
 
   return newBus;
 };
 
-const clearBus = setupBus;
+const dataToAddressHigh = (bus: Bus, enable: boolean): Bus => {
+  if (enable) {
+    const newBus = { ...bus };
+    newBus.addressRegister = bus.addressRegister | (bus.data << 8);
+
+    return newBus;
+  }
+
+  return bus;
+};
+
+const dataToAddressLow = (bus: Bus, enable: boolean): Bus => {
+  if (enable) {
+    const newBus = { ...bus };
+    newBus.addressRegister = bus.addressRegister | bus.data;
+
+    return newBus;
+  }
+
+  return bus;
+};
+
+const busRegisterToAddress = (bus: Bus, enable: boolean): Bus => {
+  if (enable) {
+    const newBus = { ...bus };
+    newBus.address = bus.addressRegister;
+
+    return newBus;
+  }
+
+  return bus;
+};
+
+const clearBus = (bus: Bus) => {
+  const newBus = setupBus();
+  newBus.addressRegister = bus.addressRegister;
+
+  return newBus;
+};
 
 const interfaceAllRegisters = (
   machineState: MachineState,
   controlWord: ControlWord,
 ): MachineState => {
   let { cpuRegisters, mainBus, systemMemory } = machineState;
+
+  mainBus = busRegisterToAddress(mainBus, controlWord.bao);
+
   /* Output pass first since real hardware is parallel and this is synchronous */
-  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllCPUAddressRegisters({
+  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllAddressRegisters({
     bus: mainBus,
     registers: cpuRegisters,
     output: true,
@@ -50,7 +91,7 @@ const interfaceAllRegisters = (
   }));
 
   /* Input pass next since real hardware is parallel and this is synchronous */
-  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllCPUAddressRegisters({
+  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllAddressRegisters({
     bus: mainBus,
     registers: cpuRegisters,
     output: false,
@@ -67,7 +108,7 @@ const interfaceAllRegisters = (
   }));
 
   /* Another output pass since we have 2 busses, data and address */
-  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllCPUDataRegisters({
+  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllDataRegisters({
     bus: mainBus,
     registers: cpuRegisters,
     output: true,
@@ -84,7 +125,7 @@ const interfaceAllRegisters = (
   }));
 
   /* Another input pass since we have 2 busses, data and address */
-  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllCPUDataRegisters({
+  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllDataRegisters({
     bus: mainBus,
     registers: cpuRegisters,
     output: false,
@@ -100,7 +141,19 @@ const interfaceAllRegisters = (
     controlWord,
   }));
 
+  mainBus = dataToAddressLow(mainBus, controlWord.dal);
+  mainBus = dataToAddressHigh(mainBus, controlWord.dah);
+
   return { cpuRegisters, mainBus, systemMemory };
 };
 
-export { MachineState, interfaceAllRegisters, outputToAddressBus, outputToDataBus, clearBus };
+export {
+  MachineState,
+  interfaceAllRegisters,
+  outputToAddressBus,
+  outputToDataBus,
+  dataToAddressHigh,
+  dataToAddressLow,
+  busRegisterToAddress,
+  clearBus,
+};

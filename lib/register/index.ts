@@ -106,7 +106,7 @@ const interfaceInstructionRegisterData = ({
   return { bus, register };
 };
 
-const interfaceAllCPUAddressRegisters = ({
+const interfaceAllAddressRegisters = ({
   bus,
   registers,
   output,
@@ -140,7 +140,7 @@ const interfaceAllCPUAddressRegisters = ({
   return { bus: mainBus, registers: cpuRegisters };
 };
 
-const interfaceAllCPUDataRegisters = ({
+const interfaceAllDataRegisters = ({
   bus,
   registers,
   output,
@@ -249,8 +249,8 @@ const setStatusFlag = ({
 export {
   interfaceRegisterAddress,
   interfaceRegisterData,
-  interfaceAllCPUAddressRegisters,
-  interfaceAllCPUDataRegisters,
+  interfaceAllAddressRegisters,
+  interfaceAllDataRegisters,
   incrementProgramCounter,
   incrementInstructionCounter,
   setStatusFlag,

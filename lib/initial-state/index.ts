@@ -5,6 +5,7 @@ import * as fs from 'fs';
 type Byte = boolean[];
 
 type Bus = {
+  addressRegister: number; // 16 bit
   address: number; // 16 bit
   data: number; // 8 bit
 };
@@ -37,6 +38,7 @@ type Memory = {
 
 const setupBus = (): Bus => {
   return {
+    addressRegister: 0b0000000000000000,
     address: 0b0000000000000000,
     data: 0b00000000,
   };
@@ -69,8 +71,10 @@ const setupMemory = (): Memory => {
   // put a command and some data in memory for now for testing.
   const mem = {
     addressRegister: 0b0000000000000000,
-    data: [],
+    data: [0xad, 0xff, 0x00, 0x02, 0xa9, 0x05, 0x02, 0x69, 0x01, 0xea, 0x02, 0x8d, 0xff, 0x00],
+    // data: [0xa9, 0x01, 0x69, 0x01, 0x01],
   };
+  mem.data[0x00ff] = 0x09;
 
   return mem;
 };
