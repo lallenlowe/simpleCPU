@@ -71,10 +71,11 @@ const setupMemory = (): Memory => {
   // put a command and some data in memory for now for testing.
   const mem = {
     addressRegister: 0b0000000000000000,
-    data: [0xad, 0xff, 0x00, 0x02, 0xa9, 0x05, 0x02, 0x69, 0x01, 0xea, 0x02, 0x8d, 0xff, 0x00],
+    //data: [0xad, 0xff, 0x00, 0x02, 0xa9, 0x05, 0x02, 0x69, 0x01, 0xea, 0x02, 0x8d, 0xff, 0x00],
     // data: [0xa9, 0x01, 0x69, 0x01, 0x01],
+    data: [],
   };
-  mem.data[0x00ff] = 0x09;
+  //mem.data[0x00ff] = 0x09;
 
   return mem;
 };
@@ -82,11 +83,10 @@ const setupMemory = (): Memory => {
 const loadBinFileToMemory = (memory: Memory, fileName: string): Memory => {
   const newMemory = { ...memory };
   const file = fs.readFileSync(fileName, { encoding: 'hex' });
-  const chunks = file.match(/.{10}/g) || [];
+  const chunks = file.match(/.{2}/g) || [];
   const memoryContents: number[] = [];
-  chunks.forEach((chunk) => {
-    const index = parseInt(chunk.slice(0, 4), 16);
-    memoryContents[index] = parseInt(chunk.slice(4), 16);
+  chunks.forEach((chunk, index) => {
+    memoryContents[index] = parseInt(chunk, 16);
   });
 
   newMemory.data = memoryContents;

@@ -54,6 +54,7 @@ type ControlWord = {
   dah: boolean; // copy contents of data bus into the high 8 bits of the bus addressRegister
   dal: boolean; // copy contents of data bus into the low 8 bits of the bus addressRegister
   bao: boolean; // bus address register out to address bus
+  bac: boolean; // clear the bus address register
   dc: boolean; // do compare x and y registers
   dE: boolean; // do sum on x and y registers
   fi: boolean; // cpu status flags in
@@ -86,6 +87,7 @@ const baseControl: ControlWord = {
   dah: false, // copy contents of data bus into the high 8 bits of the address bus
   dal: false, // copy contents of data bus into the low 8 bits of the address bus
   bao: false, // bus address register out to address bus
+  bac: false, // clear the bus address register
   dc: false, // do compare x and y registers
   dE: false, // do sum on x and y registers
   fi: false, // cpu status flags in
@@ -113,15 +115,15 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
-      Object.assign({ ...baseControl }, { bao: true, pcai: true }),
+      Object.assign({ ...baseControl }, { bao: true, pcai: true, bac: true }),
     ],
   },
   [instructionMap.ADCA]: {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
-      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, xi: true }),
-      Object.assign({ ...baseControl }, { ao: true, yi: true, dE: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, xi: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, yi: true, dE: true, fi: true }),
       Object.assign({ ...baseControl }, { so: true, ai: true }),
     ],
   },
@@ -143,7 +145,7 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
-      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, yi: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, yi: true, bac: true }),
       Object.assign({ ...baseControl }, { ao: true, xi: true }),
       Object.assign({ ...baseControl }, { dc: true, fi: true }),
     ],
@@ -152,7 +154,7 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
-      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, ai: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, ai: true, bac: true }),
     ],
   },
   [instructionMap.LDAI]: {
@@ -165,7 +167,7 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
-      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, xi: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, xi: true, bac: true }),
     ],
   },
   [instructionMap.LDYI]: {
@@ -175,7 +177,7 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
-      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, yi: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, yi: true, bac: true }),
     ],
   },
   [instructionMap.TAX]: {
@@ -188,21 +190,21 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
-      Object.assign({ ...baseControl }, { bao: true, mi: true, ao: true, ri: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ao: true, ri: true, bac: true }),
     ],
   },
   [instructionMap.STXA]: {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
-      Object.assign({ ...baseControl }, { bao: true, mi: true, xo: true, ri: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, xo: true, ri: true, bac: true }),
     ],
   },
   [instructionMap.STYA]: {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
-      Object.assign({ ...baseControl }, { bao: true, mi: true, yo: true, ri: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, yo: true, ri: true, bac: true }),
     ],
   },
 };

@@ -1,6 +1,6 @@
 'use strict';
 
-import { setupBus, setupCpuRegisters, setupMemory /*loadBinFileToMemory*/ } from './initial-state';
+import { setupBus, setupCpuRegisters, setupMemory, loadBinFileToMemory } from './initial-state';
 import { incrementProgramCounter, incrementInstructionCounter } from './register';
 import { setImmediateFlags, getControlWord } from './control';
 import * as alu from './alu';
@@ -12,7 +12,7 @@ const cycle = (machineState: MachineState) => {
   let { cpuRegisters, mainBus, systemMemory } = interfaceAllRegisters(machineState, controlWord);
 
   // Real busses are cleared just by having no signals output on them
-  mainBus = clearBus(mainBus);
+  mainBus = clearBus(mainBus, controlWord);
 
   cpuRegisters = setImmediateFlags({ controlWord, cpuRegisters });
 
@@ -40,7 +40,7 @@ const start = () => {
   const cpuRegisters = setupCpuRegisters();
   const mainBus = setupBus();
   let systemMemory = setupMemory();
-  //systemMemory = loadBinFileToMemory(systemMemory, './testing.bin');
+  systemMemory = loadBinFileToMemory(systemMemory, './add1.bin');
 
   cycle({ cpuRegisters, mainBus, systemMemory });
 };

@@ -58,9 +58,11 @@ const busRegisterToAddress = (bus: Bus, enable: boolean): Bus => {
   return bus;
 };
 
-const clearBus = (bus: Bus) => {
+const clearBus = (bus: Bus, controlWord: ControlWord) => {
   const newBus = setupBus();
-  newBus.addressRegister = bus.addressRegister;
+  if (!controlWord.bac) {
+    newBus.addressRegister = bus.addressRegister;
+  }
 
   return newBus;
 };
