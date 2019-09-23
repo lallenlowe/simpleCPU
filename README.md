@@ -1,4 +1,4 @@
-![simpleCPU logo](https://github.com/lallenlowe/simpleCPU/blob/master/simplecpu.svg)
+![simpleCPU logo](https://raw.githubusercontent.com/lallenlowe/simpleCPU/EXPERIMENT-implement-address-and-data-bus-with-addressing-modes/simplecpu.svg)
 
 # simpleCPU
 
