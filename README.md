@@ -1,3 +1,5 @@
+![simpleCPU logo](https://github.com/lallenlowe/simpleCPU/blob/master/simplecpu.svg)
+
 # simpleCPU
 
 This is an experiment in simulating a very simple CPU, for my own education.
