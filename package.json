@@ -28,7 +28,7 @@
     "eslint-plugin-json": "1.4.0",
     "@jeremejevs/file-api": "^0.10.4",
     "filereader": "^0.10.3",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.19",
     "prettier": "1.18.2",
     "typescript": "3.6.2"
   }
