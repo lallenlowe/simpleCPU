@@ -5,7 +5,7 @@ It will not run 6502 code, but hopefully I can get it to run something similar s
 
 ## Quickstart
 
-- [Node.js@10.x.x](https://nodejs.org/en/download/)
+- [Node.js@14.x.x](https://nodejs.org/en/download/)
 - Install deps, ```npm i```
 - Build ```npm run build```
 - Compile testing.s ```node dist/lib/assembler/index.js```
