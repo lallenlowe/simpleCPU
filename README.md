@@ -13,7 +13,7 @@ It will not run 6502 code, but hopefully I can get it to run something similar s
 - [Node.js@14.x.x](https://nodejs.org/en/download/)
 - Install deps, `npm i`
 - Build `npm run build`
-- Compile testing.s `node dist/lib/assembler/index.js`
+- Currently using https://www.masswerk.at/6502/assembler.html to build object code, and then hand editing the test binaries with a hex editor.
 - Start program, `node dist/index.js`
 - Run tests, `npm t`
 
