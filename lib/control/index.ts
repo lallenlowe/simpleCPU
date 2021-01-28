@@ -6,47 +6,55 @@ import { CpuRegisters } from '../initial-state';
 type InstructionMap = { [key: string]: number };
 
 const instructionMap: InstructionMap = {
-  HLT: 0x00, // Halt the computer, stop the whole program
-  OTA: 0x01, // Output the value of the a register
-  NOP: 0x02, // No Operation,
-  CLC: 0x18, // Clear the carry flag
-  SEC: 0x26, // Set the carry flag
-  CLZ: 0x27, // Clear the carry flag
-  SEZ: 0x28, // Set the carry flag
-  JMP: 0x4c, // Jump to the given address
-  JMC: 0x4d, // Jump to the given address if the carry flag is set
-  JMZ: 0x4e, // Jump to the given address if the zero flag is set
-  ADC: 0x6d, // Add with carry
-  CMP: 0xcd, // Compare contents of a register to contents of a memory address
-  LDA: 0xa9, // Load the a register with a value from a memory address
-  LDX: 0xa2, // Load the x register with a value from a memory address
-  LDY: 0xa0, // Load the y register with a value from a memory address
-  TSA: 0xaa, // Transfer the value of sum to the a register
-  STA: 0x85, // Store the contents of the a register to a memory address
-  STX: 0x86, // Store the contents of the x register to a memory address
-  STY: 0x84, // Store the contents of the y register to a memory address
+  HLT: 0x00, // Halt the computer, stop the whole program | IMPLIED
+  OTA: 0x02, // Output the value of the a register | IMPLIED
+  NOP: 0xea, // No Operation, | IMPLIED
+  CLC: 0x18, // Clear the carry flag | IMPLIED
+  SEC: 0x26, // Set the carry flag | IMPLIED
+  JMP: 0x4c, // Jump to the given address | ABSOLUTE
+  ADCI: 0x69, // Add with carry | IMMEDIATE
+  ADCA: 0x6d, // Add with carry | ABSOLUTE
+  CMPI: 0xc9, // Compare contents of a register to immediate contents of memory | IMMEDIATE
+  CMPA: 0xcd, // Compare contents of a register to contents of a memory address | ABSOLUTE
+  LDAA: 0xad, // Load the a register with a value from absolute memory address | ABSOLUTE
+  LDAI: 0xa9, // Load the a register with an immediate value | IMMEDIATE
+  LDXI: 0xa2, // Load the x register with an immediate value | IMMEDIATE
+  LDXA: 0xae, // Load the x register with a value from absolute memory address | ABSOLUTE
+  LDYI: 0xa0, // Load the y register with an immediate value | IMMEDIATE
+  LDYA: 0xac, // Load the y register with a value from absolute memory address | ABSOLUTE
+  TAX: 0xaa, // Transfer the value of a register to x register | IMPLIED
+  TAY: 0xa8, // Transfer the value of a register to y register | IMPLIED
+  STAA: 0x8d, // Store the contents of the a register to an absolute memory address | ABSOLUTE
+  STXA: 0x8e, // Store the contents of the x register to an absolute memory address | ABSOLUTE
+  STYA: 0x8c, // Store the contents of the y register to an absolute memory address | ABSOLUTE
 };
 
 type ControlWord = {
-  xi: boolean; // x register input
-  xo: boolean; // x register output
-  yi: boolean; // y register input
-  yo: boolean; // y register output
-  ai: boolean; // a register input
-  ao: boolean; // a register output
-  so: boolean; // sum register output
-  ii: boolean; // instruction register input
-  io: boolean; // instruction register output
-  pci: boolean; // program counter input
-  pco: boolean; // program counter output
+  xi: boolean; // x register input from data bus
+  xo: boolean; // x register output to data bus
+  yi: boolean; // y register input from data bus
+  yo: boolean; // y register output to data bus
+  ai: boolean; // a register input from data bus
+  ao: boolean; // a register output to data bus
+  so: boolean; // sum register output to data bus
+  idi: boolean; // instruction register input from data bus
+  iai: boolean; // instruction register input from address bus
+  ido: boolean; // instruction register output to data bus
+  iao: boolean; // instruction register output to address bus
+  pcai: boolean; // program counter input from address bus
+  pco: boolean; // program counter output to address bus
   pce: boolean; // program counter enable
-  spi: boolean; // stack pointer input
-  spo: boolean; // stack pointer output
-  mi: boolean; // memory address register input
-  mo: boolean; // memory address register output
-  ri: boolean; // ram data input
-  ro: boolean; // ram data output
-  oi: boolean; // output register in
+  spi: boolean; // stack pointer input from address bus
+  spo: boolean; // stack pointer output to address bus
+  mi: boolean; // memory address register input from address bus
+  mo: boolean; // memory address register output to address bus
+  ri: boolean; // ram data input from data bus
+  ro: boolean; // ram data output to data bus
+  oi: boolean; // output register in from data bus
+  dah: boolean; // copy contents of data bus into the high 8 bits of the bus addressRegister
+  dal: boolean; // copy contents of data bus into the low 8 bits of the bus addressRegister
+  bao: boolean; // bus address register out to address bus
+  bac: boolean; // clear the bus address register
   dc: boolean; // do compare x and y registers
   dE: boolean; // do sum on x and y registers
   fi: boolean; // cpu status flags in
@@ -55,37 +63,42 @@ type ControlWord = {
 };
 
 const baseControl: ControlWord = {
-  xi: false, // x register input
-  xo: false, // x register output
-  yi: false, // y register input
-  yo: false, // y register output
-  ai: false, // a register input
-  ao: false, // a register output
-  so: false, // sum register output
-  ii: false, // instruction register input
-  io: false, // instruction register output
-  pci: false, // program counter input
-  pco: false, // program counter output
+  xi: false, // x register input from data bus
+  xo: false, // x register output to data bus
+  yi: false, // y register input from data bus
+  yo: false, // y register output to data bus
+  ai: false, // a register input from data bus
+  ao: false, // a register output to data bus
+  so: false, // sum register output to data bus
+  idi: false, // instruction register input from data bus
+  iai: false, // instruction register input from address bus
+  ido: false, // instruction register output to data bus
+  iao: false, // instruction register output to address bus
+  pcai: false, // program counter input from address bus
+  pco: false, // program counter output to address bus
   pce: false, // program counter enable
-  spi: false, // stack pointer input
-  spo: false, // stack pointer output
-  mi: false, // memory address register input
-  mo: false, // memory address register output
-  ri: false, // ram data input
-  ro: false, // ram data output
-  oi: false, // output register in
+  spi: false, // stack pointer input from address bus
+  spo: false, // stack pointer output to address bus
+  mi: false, // memory address register input from address bus
+  mo: false, // memory address register output to address bus
+  ri: false, // ram data input from data bus
+  ro: false, // ram data output to data bus
+  oi: false, // output register in from data bus
+  dah: false, // copy contents of data bus into the high 8 bits of the address bus
+  dal: false, // copy contents of data bus into the low 8 bits of the address bus
+  bao: false, // bus address register out to address bus
+  bac: false, // clear the bus address register
   dc: false, // do compare x and y registers
   dE: false, // do sum on x and y registers
   fi: false, // cpu status flags in
   ht: false, // halt the computer
-  if: [], // immediate flags to set on command
+  if: [], // Cpu status flags to set immediately
 };
 
 type MicroInstructions = Array<ControlWord>;
 
 const loadNextInstruction: MicroInstructions = [
-  Object.assign({ ...baseControl }, { pco: true, mi: true }),
-  Object.assign({ ...baseControl }, { ro: true, ii: true, pce: true }),
+  Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, idi: true, pce: true }),
 ];
 
 const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
@@ -98,69 +111,100 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   [instructionMap.CLC]: {
     0: [Object.assign({ ...baseControl }, { if: [{ flag: 'C', value: false }] })],
   },
-  [instructionMap.SEZ]: {
-    0: [Object.assign({ ...baseControl }, { if: [{ flag: 'Z', value: true }] })],
-  },
-  [instructionMap.CLZ]: {
-    0: [Object.assign({ ...baseControl }, { if: [{ flag: 'Z', value: false }] })],
-  },
-  [instructionMap.JMP]: { 0: [Object.assign({ ...baseControl }, { io: true, pci: true })] },
-  [instructionMap.JMC]: {
-    C: [Object.assign({ ...baseControl }, { io: true, pci: true })],
-  },
-  [instructionMap.JMZ]: {
-    Z: [Object.assign({ ...baseControl }, { io: true, pci: true })],
-  },
-  [instructionMap.ADC]: {
+  [instructionMap.JMP]: {
     0: [
-      Object.assign({ ...baseControl }, { ao: true, xi: true }),
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
-      Object.assign({ ...baseControl }, { ro: true, yi: true, dE: true, fi: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, pcai: true, bac: true }),
+    ],
+  },
+  [instructionMap.ADCA]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, xi: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, yi: true, dE: true, fi: true }),
       Object.assign({ ...baseControl }, { so: true, ai: true }),
     ],
   },
-  [instructionMap.CMP]: {
+  [instructionMap.ADCI]: {
     0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, yi: true, pce: true }),
+      Object.assign({ ...baseControl }, { ao: true, xi: true, dE: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.CMPI]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, yi: true, pce: true }),
       Object.assign({ ...baseControl }, { ao: true, xi: true }),
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
-      Object.assign({ ...baseControl }, { ro: true, yi: true, dc: true, fi: true }),
+      Object.assign({ ...baseControl }, { dc: true, fi: true }),
     ],
   },
-  [instructionMap.LDA]: {
+  [instructionMap.CMPA]: {
     0: [
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
-      Object.assign({ ...baseControl }, { ro: true, ai: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, yi: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, xi: true }),
+      Object.assign({ ...baseControl }, { dc: true, fi: true }),
     ],
   },
-  [instructionMap.LDX]: {
+  [instructionMap.LDAA]: {
     0: [
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
-      Object.assign({ ...baseControl }, { ro: true, xi: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, ai: true, bac: true }),
     ],
   },
-  [instructionMap.LDY]: {
+  [instructionMap.LDAI]: {
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, ai: true, pce: true })],
+  },
+  [instructionMap.LDXI]: {
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, xi: true, pce: true })],
+  },
+  [instructionMap.LDXA]: {
     0: [
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
-      Object.assign({ ...baseControl }, { ro: true, yi: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, xi: true, bac: true }),
     ],
   },
-  [instructionMap.TSA]: { 0: [Object.assign({ ...baseControl }, { so: true, ai: true })] },
-  [instructionMap.STA]: {
+  [instructionMap.LDYI]: {
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, yi: true, pce: true })],
+  },
+  [instructionMap.LDYA]: {
     0: [
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
-      Object.assign({ ...baseControl }, { ao: true, ri: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, yi: true, bac: true }),
     ],
   },
-  [instructionMap.STX]: {
+  [instructionMap.TAX]: {
+    0: [Object.assign({ ...baseControl }, { ao: true, xi: true })],
+  },
+  [instructionMap.TAY]: {
+    0: [Object.assign({ ...baseControl }, { ao: true, yi: true })],
+  },
+  [instructionMap.STAA]: {
     0: [
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
-      Object.assign({ ...baseControl }, { xo: true, ri: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ao: true, ri: true, bac: true }),
     ],
   },
-  [instructionMap.STY]: {
+  [instructionMap.STXA]: {
     0: [
-      Object.assign({ ...baseControl }, { io: true, mi: true }),
-      Object.assign({ ...baseControl }, { yo: true, ri: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, xo: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.STYA]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, yo: true, ri: true, bac: true }),
     ],
   },
 };
@@ -198,14 +242,14 @@ const getConditionalInstruction = (
 
 const getControlWord = (cpuRegisters: CpuRegisters): ControlWord => {
   // always load next instruction from ram into instruction register, takes 2 cycles
-  if (cpuRegisters.ic < 2) {
+  if (cpuRegisters.ic < 1) {
     return loadNextInstruction[cpuRegisters.ic];
   }
 
-  // subtract 2 from counter to compensate for the 2 load instruction cycles
-  const counter = cpuRegisters.ic - 2;
+  // subtract 1 from counter to compensate for the 1 load instruction cycle
+  const counter = cpuRegisters.ic - 1;
   // only use the most significant 8 bits of the instruction since those represent the instruction itself not the data
-  const instructionIndex = cpuRegisters.i >> 16;
+  const instructionIndex = cpuRegisters.i;
   // get the next word from the instructions array
 
   return (

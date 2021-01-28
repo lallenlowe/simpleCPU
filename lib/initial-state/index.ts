@@ -5,7 +5,9 @@ import * as fs from 'fs';
 type Byte = boolean[];
 
 type Bus = {
-  data: number; // 16 bit
+  addressRegister: number; // 16 bit
+  address: number; // 16 bit
+  data: number; // 8 bit
 };
 
 type CpuRegisters = {
@@ -16,7 +18,7 @@ type CpuRegisters = {
   i: number; // instruction register
   ic: number; // instruction counter
   pc: number; // 16 bit program counter
-  sp: number; // 16 bit stack pointer
+  sp: number; // 8 bit stack pointer
   o: number; // 8 bit output register
   status: {
     [C: string]: boolean; // Carry
@@ -36,7 +38,9 @@ type Memory = {
 
 const setupBus = (): Bus => {
   return {
-    data: 0b0000000000000000,
+    addressRegister: 0b0000000000000000,
+    address: 0b0000000000000000,
+    data: 0b00000000,
   };
 };
 
@@ -49,7 +53,7 @@ const setupCpuRegisters = (): CpuRegisters => {
     i: 0b0000000000000000,
     ic: 0b00000000,
     pc: 0b0000000000000000,
-    sp: 0b0000000000000000,
+    sp: 0b00000000,
     o: 0b00000000,
     status: {
       C: false,
@@ -67,8 +71,11 @@ const setupMemory = (): Memory => {
   // put a command and some data in memory for now for testing.
   const mem = {
     addressRegister: 0b0000000000000000,
+    //data: [0xad, 0xff, 0x00, 0x02, 0xa9, 0x05, 0x02, 0x69, 0x01, 0xea, 0x02, 0x8d, 0xff, 0x00],
+    // data: [0xa9, 0x01, 0x69, 0x01, 0x01],
     data: [],
   };
+  //mem.data[0x00ff] = 0x09;
 
   return mem;
 };
@@ -76,11 +83,10 @@ const setupMemory = (): Memory => {
 const loadBinFileToMemory = (memory: Memory, fileName: string): Memory => {
   const newMemory = { ...memory };
   const file = fs.readFileSync(fileName, { encoding: 'hex' });
-  const chunks = file.match(/.{10}/g) || [];
+  const chunks = file.match(/.{2}/g) || [];
   const memoryContents: number[] = [];
-  chunks.forEach((chunk) => {
-    const index = parseInt(chunk.slice(0, 4), 16);
-    memoryContents[index] = parseInt(chunk.slice(4), 16);
+  chunks.forEach((chunk, index) => {
+    memoryContents[index] = parseInt(chunk, 16);
   });
 
   newMemory.data = memoryContents;

@@ -1,6 +1,6 @@
 'use strict';
 
-import { outputToBus } from '../bus';
+import { outputToAddressBus, outputToDataBus } from '../bus';
 import { Bus, Memory } from '../initial-state';
 import { ControlWord } from '../control';
 
@@ -9,23 +9,16 @@ type MemoryInterface = {
   memory: Memory;
   output: boolean;
   input: boolean;
-};
-
-type MemoryControlInterface = {
-  bus: Bus;
-  memory: Memory;
-  output: boolean;
-  input: boolean;
   controlWord: ControlWord;
 };
 
-const interfaceMemoryData = ({ bus, memory, output, input }: MemoryInterface) => {
-  if (output) {
-    const newBus = outputToBus({ bus, data: memory.data[memory.addressRegister] });
+const interfaceMemoryData = ({ bus, memory, output, input, controlWord }: MemoryInterface) => {
+  if (output && controlWord.ro) {
+    const newBus = outputToDataBus({ bus, data: memory.data[memory.addressRegister] });
     return { bus: newBus, memory };
   }
 
-  if (input) {
+  if (input && controlWord.ri) {
     const newMemory = { ...memory };
     newMemory.data[memory.addressRegister] = bus.data;
     return { bus, memory: newMemory };
@@ -34,43 +27,22 @@ const interfaceMemoryData = ({ bus, memory, output, input }: MemoryInterface) =>
   return { bus, memory };
 };
 
-const interfaceMemoryAddress = ({ bus, memory, output, input }: MemoryInterface) => {
-  if (output) {
-    const newBus = outputToBus({
+const interfaceMemoryAddress = ({ bus, memory, output, input, controlWord }: MemoryInterface) => {
+  if (output && controlWord.mo) {
+    const newBus = outputToAddressBus({
       bus,
-      data: memory.addressRegister,
+      address: memory.addressRegister,
     });
     return { bus: newBus, memory };
   }
 
-  if (input) {
+  if (input && controlWord.mi) {
     const newMemory = { ...memory };
-    newMemory.addressRegister = bus.data;
+    newMemory.addressRegister = bus.address;
     return { bus, memory: newMemory };
   }
 
   return { bus, memory };
 };
 
-const interfaceMemory = ({ bus, memory, output, input, controlWord }: MemoryControlInterface) => {
-  let systemMemory = { ...memory };
-  let mainBus = { ...bus };
-
-  ({ bus: mainBus, memory: systemMemory } = interfaceMemoryAddress({
-    bus: mainBus,
-    memory: systemMemory,
-    output: output && controlWord.mo,
-    input: input && controlWord.mi,
-  }));
-
-  ({ bus: mainBus, memory: systemMemory } = interfaceMemoryData({
-    bus: mainBus,
-    memory: systemMemory,
-    output: output && controlWord.ro,
-    input: input && controlWord.ri,
-  }));
-
-  return { bus: mainBus, memory: systemMemory };
-};
-
-export { interfaceMemory, interfaceMemoryData, interfaceMemoryAddress };
+export { interfaceMemoryData, interfaceMemoryAddress };

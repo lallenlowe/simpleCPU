@@ -51,37 +51,6 @@ const add = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters =>
   return registers;
 };
 
-// TODO: maybe replace with a full 8 bit adder using bitwise operators?
-// const add = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
-//   if (controlWord.dE) {
-//     let newRegisters: CpuRegisters = { ...registers };
-
-//     let sum = newRegisters.x + newRegisters.y;
-
-//     if (sum > 0b11111111) {
-//       sum = 0b11111111;
-//       newRegisters = setStatusFlag({
-//         cpuRegisters: newRegisters,
-//         flagsInput: controlWord.fi,
-//         flag: 'C',
-//         value: true,
-//       });
-//     } else {
-//       newRegisters = setStatusFlag({
-//         cpuRegisters: newRegisters,
-//         flagsInput: controlWord.fi,
-//         flag: 'C',
-//         value: false,
-//       });
-//     }
-//     newRegisters.s = sum;
-
-//     return newRegisters;
-//   }
-
-//   return registers;
-// };
-
 const compare = (registers: CpuRegisters, controlWord: ControlWord) => {
   if (controlWord.dc) {
     let newRegisters: CpuRegisters = { ...registers };
