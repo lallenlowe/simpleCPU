@@ -62,6 +62,14 @@ const instructionMap: InstructionMap = {
   CPXA: 0xec, // Compare x register | ABSOLUTE
   CPYI: 0xc0, // Compare y register | IMMEDIATE
   CPYA: 0xcc, // Compare y register | ABSOLUTE
+  BEQ: 0xf0, // Branch if zero flag set | RELATIVE
+  BNE: 0xd0, // Branch if zero flag clear | RELATIVE
+  BCS: 0xb0, // Branch if carry set | RELATIVE
+  BCC: 0x90, // Branch if carry clear | RELATIVE
+  BMI: 0x30, // Branch if negative flag set | RELATIVE
+  BPL: 0x10, // Branch if negative flag clear | RELATIVE
+  BVS: 0x70, // Branch if overflow set | RELATIVE
+  BVC: 0x50, // Branch if overflow clear | RELATIVE
 };
 
 type ControlWord = {
@@ -104,6 +112,8 @@ type ControlWord = {
   la: boolean; // latch ALU input A from data bus
   lb: boolean; // latch ALU input B from data bus
   c1: boolean; // load constant 1 into ALU input B
+  bra: boolean; // branch relative: add signed data bus value to PC
+  zn: boolean; // set Z and N flags from data bus value
   fi: boolean; // cpu status flags in
   ht: boolean; // halt the computer
   if: { flag: string; value: boolean }[]; // Cpu status flags to set immediately
@@ -149,6 +159,8 @@ const baseControl: ControlWord = {
   la: false, // latch ALU input A from data bus
   lb: false, // latch ALU input B from data bus
   c1: false, // load constant 1 into ALU input B
+  bra: false, // branch relative: add signed data bus value to PC
+  zn: false, // set Z and N flags from data bus value
   fi: false, // cpu status flags in
   ht: false, // halt the computer
   if: [], // Cpu status flags to set immediately
@@ -210,43 +222,43 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
-      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, ai: true, bac: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, ai: true, bac: true, zn: true }),
     ],
   },
   [instructionMap.LDAI]: {
-    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, ai: true, pce: true })],
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, ai: true, pce: true, zn: true })],
   },
   [instructionMap.LDXI]: {
-    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, xi: true, pce: true })],
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, xi: true, pce: true, zn: true })],
   },
   [instructionMap.LDXA]: {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
-      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, xi: true, bac: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, xi: true, bac: true, zn: true }),
     ],
   },
   [instructionMap.LDYI]: {
-    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, yi: true, pce: true })],
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, yi: true, pce: true, zn: true })],
   },
   [instructionMap.LDYA]: {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
-      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, yi: true, bac: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, yi: true, bac: true, zn: true }),
     ],
   },
   [instructionMap.TAX]: {
-    0: [Object.assign({ ...baseControl }, { ao: true, xi: true })],
+    0: [Object.assign({ ...baseControl }, { ao: true, xi: true, zn: true })],
   },
   [instructionMap.TAY]: {
-    0: [Object.assign({ ...baseControl }, { ao: true, yi: true })],
+    0: [Object.assign({ ...baseControl }, { ao: true, yi: true, zn: true })],
   },
   [instructionMap.TXA]: {
-    0: [Object.assign({ ...baseControl }, { xo: true, ai: true })],
+    0: [Object.assign({ ...baseControl }, { xo: true, ai: true, zn: true })],
   },
   [instructionMap.TYA]: {
-    0: [Object.assign({ ...baseControl }, { yo: true, ai: true })],
+    0: [Object.assign({ ...baseControl }, { yo: true, ai: true, zn: true })],
   },
   [instructionMap.CLV]: {
     0: [Object.assign({ ...baseControl }, { if: [{ flag: 'O', value: false }] })],
@@ -511,6 +523,41 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
       Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
       Object.assign({ ...baseControl }, { yo: true, la: true, dc: true, fi: true }),
     ],
+  },
+  // Branch instructions — relative addressing
+  // "branch if set": flag key = branch, 0 = skip
+  [instructionMap.BEQ]: {
+    Z: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true, bra: true })],
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, pce: true })],
+  },
+  [instructionMap.BCS]: {
+    C: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true, bra: true })],
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, pce: true })],
+  },
+  [instructionMap.BMI]: {
+    N: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true, bra: true })],
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, pce: true })],
+  },
+  [instructionMap.BVS]: {
+    O: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true, bra: true })],
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, pce: true })],
+  },
+  // "branch if clear": 0 = branch, flag key = skip
+  [instructionMap.BNE]: {
+    Z: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, pce: true })],
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true, bra: true })],
+  },
+  [instructionMap.BCC]: {
+    C: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, pce: true })],
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true, bra: true })],
+  },
+  [instructionMap.BPL]: {
+    N: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, pce: true })],
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true, bra: true })],
+  },
+  [instructionMap.BVC]: {
+    O: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, pce: true })],
+    0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true, bra: true })],
   },
 };
 
