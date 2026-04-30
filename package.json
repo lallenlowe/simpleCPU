@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint .",
     "format": "prettier --write '**/*'",
     "build": "tsc --incremental",
     "start": "node dist/index.js",
@@ -16,8 +17,11 @@
   "author": "Allen Lowe",
   "license": "ISC",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.0.0",
+    "eslint": "^10.2.1",
     "prettier": "^3.4.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.59.1"
   }
 }

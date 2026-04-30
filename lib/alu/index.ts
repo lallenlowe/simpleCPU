@@ -24,7 +24,7 @@ const add = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters =>
   if (controlWord.dE) {
     let newRegisters: CpuRegisters = { ...registers };
 
-    let { sum, carry, overflow } = byteAdder(
+    const { sum, carry, overflow } = byteAdder(
       numberToByte(newRegisters.x),
       numberToByte(newRegisters.y),
       newRegisters.status['C'],

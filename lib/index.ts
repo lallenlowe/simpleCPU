@@ -9,6 +9,7 @@ import { MachineState, clearBus, interfaceAllRegisters } from './bus';
 const cycle = (machineState: MachineState) => {
   const controlWord = getControlWord(machineState.cpuRegisters);
 
+  // eslint-disable-next-line prefer-const
   let { cpuRegisters, mainBus, systemMemory } = interfaceAllRegisters(machineState, controlWord);
 
   // Real busses are cleared just by having no signals output on them
