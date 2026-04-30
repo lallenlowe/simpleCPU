@@ -1,6 +1,6 @@
 'use strict';
 
-import _ from 'lodash';
+
 import { CpuRegisters } from '../initial-state';
 
 type InstructionMap = { [key: string]: number };
@@ -234,7 +234,7 @@ const getConditionalInstruction = (
   });
 
   if (conditionalKey) {
-    return _.get(instructions, `${instructionIndex}.${conditionalKey}[${counter}]`);
+    return instructions[instructionIndex]?.[conditionalKey]?.[counter];
   }
 
   return undefined;
@@ -254,7 +254,7 @@ const getControlWord = (cpuRegisters: CpuRegisters): ControlWord => {
 
   return (
     getConditionalInstruction(cpuRegisters, instructionIndex, counter) ||
-    _.get(instructions, `${instructionIndex}.0[${counter}]`) ||
+    instructions[instructionIndex]?.[0]?.[counter] ||
     baseControl
   );
 };
