@@ -41,7 +41,7 @@ const cycle = (machineState: MachineState) => {
   if (!controlWord.ht) {
     setTimeout(() => cycle(newMachineState), 10);
   } else {
-    process.exit(0);
+    process.stdout.write('', () => process.exit(0));
   }
 };
 

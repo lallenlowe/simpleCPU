@@ -1,7 +1,7 @@
 ; simpleCPU test suite
 ; Exercises every implemented instruction
 ; Output to $FE00 — each STA $FE00 prints a test result
-; Expected output: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+; Expected output: 1 through 34, then 3 2 1 35, then Hello World!
 
 * = $0000
 
@@ -15,9 +15,9 @@
         STA $FE00       ; output 2
 
 ; --- Test 3: STA / LDA absolute ---
-        STA $0200       ; store 2 at $0200
+        STA $0300       ; store 2 at $0300
         LDA #$00        ; clear A
-        LDA $0200       ; reload from $0200, A=2
+        LDA $0300       ; reload from $0300, A=2
         CLC
         ADC #$01        ; A=3
         STA $FE00       ; output 3
@@ -52,22 +52,22 @@
 
 ; --- Test 10: LDX absolute ---
         LDA #$0A
-        STA $0200
-        LDX $0200       ; X=10
+        STA $0300
+        LDX $0300       ; X=10
         STX $FE00       ; output 10
 
 ; --- Test 11: LDY absolute ---
         LDA #$0B
-        STA $0200
-        LDY $0200       ; Y=11
+        STA $0300
+        LDY $0300       ; Y=11
         STY $FE00       ; output 11
 
 ; --- Test 12: ADC absolute ---
         LDA #$06
-        STA $0200       ; store 6
+        STA $0300       ; store 6
         LDA #$06
         CLC
-        ADC $0200       ; A=6+6=12
+        ADC $0300       ; A=6+6=12
         STA $FE00       ; output 12
 
 ; --- Test 13: SBC immediate ---
@@ -78,10 +78,10 @@
 
 ; --- Test 14: SBC absolute ---
         LDA #$04
-        STA $0200       ; store 4
+        STA $0300       ; store 4
         LDA #$12        ; A=18
         SEC
-        SBC $0200       ; A=18-4=14
+        SBC $0300       ; A=18-4=14
         STA $FE00       ; output 14
 
 ; --- Test 15: AND immediate ---
@@ -91,9 +91,9 @@
 
 ; --- Test 16: AND absolute ---
         LDA #$F0
-        STA $0200
+        STA $0300
         LDA #$1F
-        AND $0200       ; A=$1F & $F0 = $10 = 16
+        AND $0300       ; A=$1F & $F0 = $10 = 16
         STA $FE00       ; output 16
 
 ; --- Test 17: ORA immediate ---
@@ -103,9 +103,9 @@
 
 ; --- Test 18: ORA absolute ---
         LDA #$02
-        STA $0200
+        STA $0300
         LDA #$10
-        ORA $0200       ; A=$10 | $02 = $12 = 18
+        ORA $0300       ; A=$10 | $02 = $12 = 18
         STA $FE00       ; output 18
 
 ; --- Test 19: EOR immediate ---
@@ -125,9 +125,9 @@
 ; need A XOR mem = 20 = $14 = 00010100
 ; $FF ^ $EB = $14? $EB=11101011 XOR $FF=11111111 = 00010100 = $14 = 20 yes
         LDA #$EB
-        STA $0200
+        STA $0300
         LDA #$FF
-        EOR $0200       ; A=$FF ^ $EB = $14 = 20
+        EOR $0300       ; A=$FF ^ $EB = $14 = 20
         STA $FE00       ; output 20
 
 ; --- Test 21: ASL accumulator ---
@@ -168,10 +168,10 @@
         STX $FE00       ; output 25
 ; verify Y survived
         LDA #$AA
-        STA $0200
-        STY $0201
-        LDA $0201
-        CMP $0200       ; Y should still be $AA
+        STA $0300
+        STY $0301
+        LDA $0301
+        CMP $0300       ; Y should still be $AA
 ; (if Z is not set, something went wrong — but we can't branch yet)
 
 ; --- Test 26: INY / DEY ---
@@ -181,24 +181,92 @@
         STY $FE00       ; output 26
 ; verify X survived
         LDA #$BB
-        STA $0200
-        STX $0201
-        LDA $0201
-        CMP $0200       ; X should still be $BB
+        STA $0300
+        STX $0301
+        LDA $0301
+        CMP $0300       ; X should still be $BB
+
+; --- Test 27: BEQ (branch if Z=1) ---
+        LDA #$00        ; Z=1
+        BEQ T27OK
+        BRK             ; trap
+T27OK   LDA #$1B        ; 27
+        STA $FE00       ; output 27
+
+; --- Test 28: BNE (branch if Z=0) ---
+        LDA #$01        ; Z=0
+        BNE T28OK
+        BRK             ; trap
+T28OK   LDA #$1C        ; 28
+        STA $FE00       ; output 28
+
+; --- Test 29: BCS (branch if C=1) ---
+        SEC
+        BCS T29OK
+        BRK             ; trap
+T29OK   LDA #$1D        ; 29
+        STA $FE00       ; output 29
+
+; --- Test 30: BCC (branch if C=0) ---
+        CLC
+        BCC T30OK
+        BRK             ; trap
+T30OK   LDA #$1E        ; 30
+        STA $FE00       ; output 30
+
+; --- Test 31: BMI (branch if N=1) ---
+        LDA #$80        ; N=1
+        BMI T31OK
+        BRK             ; trap
+T31OK   LDA #$1F        ; 31
+        STA $FE00       ; output 31
+
+; --- Test 32: BPL (branch if N=0) ---
+        LDA #$01        ; N=0
+        BPL T32OK
+        BRK             ; trap
+T32OK   LDA #$20        ; 32
+        STA $FE00       ; output 32
+
+; --- Test 33: BVS (branch if V=1) ---
+        CLC
+        LDA #$40
+        ADC #$40        ; 64+64=128, overflow
+        BVS T33OK
+        BRK             ; trap
+T33OK   LDA #$21        ; 33
+        STA $FE00       ; output 33
+
+; --- Test 34: BVC (branch if V=0) ---
+        CLV
+        BVC T34OK
+        BRK             ; trap
+T34OK   LDA #$22        ; 34
+        STA $FE00       ; output 34
+
+; --- Test 35: BNE backward branch (countdown) ---
+        LDX #$03
+COUNT   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
+        DEX
+        BNE COUNT
+; After loop: X=0, output was 3, 2, 1
+; Output test number 35 to confirm we exited the loop
+        LDA #$23        ; 35
+        STA $FE00       ; output 35
 
 ; --- Smoke tests for remaining instructions (no output, just must not crash) ---
 
 ; STX / STY absolute
         LDX #$42
-        STX $0200
+        STX $0300
         LDY #$43
-        STY $0201
+        STY $0301
 
 ; INC / DEC memory
         LDA #$09
-        STA $0200
-        INC $0200       ; mem[$0200]=10
-        DEC $0200       ; mem[$0200]=9
+        STA $0300
+        INC $0300       ; mem[$0300]=10
+        DEC $0300       ; mem[$0300]=9
 
 ; CMP immediate / absolute
         LDA #$05
@@ -206,9 +274,9 @@
         CMP #$06        ; Z=0, C=0
 
         LDA #$05
-        STA $0200
+        STA $0300
         LDA #$05
-        CMP $0200       ; Z=1, C=1
+        CMP $0300       ; Z=1, C=1
 
 ; CPX immediate / absolute
         LDX #$10
@@ -216,8 +284,8 @@
         CPX #$11        ; Z=0, C=0
 
         LDA #$10
-        STA $0200
-        CPX $0200       ; Z=1, C=1
+        STA $0300
+        CPX $0300       ; Z=1, C=1
 
 ; CPY immediate / absolute
         LDY #$20
@@ -225,24 +293,24 @@
         CPY #$21        ; Z=0, C=0
 
         LDA #$20
-        STA $0200
-        CPY $0200       ; Z=1, C=1
+        STA $0300
+        CPY $0300       ; Z=1, C=1
 
 ; ASL / LSR / ROL / ROR absolute
         LDA #$02
-        STA $0200
-        ASL $0200       ; mem[$0200]=4
-        LSR $0200       ; mem[$0200]=2
+        STA $0300
+        ASL $0300       ; mem[$0300]=4
+        LSR $0300       ; mem[$0300]=2
         CLC
-        ROL $0200       ; mem[$0200]=4
+        ROL $0300       ; mem[$0300]=4
         CLC
-        ROR $0200       ; mem[$0200]=2
+        ROR $0300       ; mem[$0300]=2
 
 ; BIT absolute
         LDA #$FF
-        STA $0200
+        STA $0300
         LDA #$0F
-        BIT $0200       ; Z=0 (0F & FF != 0), N=1, V=1
+        BIT $0300       ; Z=0 (0F & FF != 0), N=1, V=1
 
 ; SEC / CLC
         SEC
