@@ -17,31 +17,37 @@ const cycle = (machineState: MachineState) => {
 
   cpuRegisters = setImmediateFlags({ controlWord, cpuRegisters });
 
+  if (controlWord.c1) {
+    cpuRegisters.aluB = 1;
+  }
+
   cpuRegisters = alu.operate({ registers: cpuRegisters, controlWord });
 
   cpuRegisters.pc = incrementProgramCounter(cpuRegisters.pc, controlWord.pce);
 
   cpuRegisters.ic = incrementInstructionCounter(cpuRegisters.ic, controlWord);
 
-  if (controlWord.oi) {
-    console.log(cpuRegisters.o + (cpuRegisters.status.C ? 256 : 0));
-  }
-
   const newMachineState: MachineState = { cpuRegisters, mainBus, systemMemory };
   if (!controlWord.ht) {
     setTimeout(() => cycle(newMachineState), 10);
   } else {
-    console.log(newMachineState);
+    process.exit(0);
   }
 };
 
 /* ##################################################################### */
 
 const start = () => {
+  const binFile = process.argv[2];
+  if (!binFile) {
+    console.error('Usage: simplecpu <file.bin>');
+    process.exit(1);
+  }
+
   const cpuRegisters = setupCpuRegisters();
   const mainBus = setupBus();
   let systemMemory = setupMemory();
-  systemMemory = loadBinFileToMemory(systemMemory, './add1.bin');
+  systemMemory = loadBinFileToMemory(systemMemory, binFile);
 
   cycle({ cpuRegisters, mainBus, systemMemory });
 };

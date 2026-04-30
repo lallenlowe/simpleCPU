@@ -191,6 +191,20 @@ const interfaceAllDataRegisters = ({
     input: input && controlWord.oi,
   }));
 
+  ({ bus: mainBus, register: cpuRegisters.aluA } = interfaceRegisterData({
+    bus: mainBus,
+    register: cpuRegisters.aluA,
+    output: output && false,
+    input: input && controlWord.la,
+  }));
+
+  ({ bus: mainBus, register: cpuRegisters.aluB } = interfaceRegisterData({
+    bus: mainBus,
+    register: cpuRegisters.aluB,
+    output: output && false,
+    input: input && controlWord.lb,
+  }));
+
   return { bus: mainBus, registers: cpuRegisters };
 };
 

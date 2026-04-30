@@ -4,6 +4,9 @@ import { outputToAddressBus, outputToDataBus } from '../bus';
 import { Bus, Memory } from '../initial-state';
 import { ControlWord } from '../control';
 
+const IO_OUTPUT = 0xfe00;
+const IO_CHAR = 0xfe01;
+
 type MemoryInterface = {
   bus: Bus;
   memory: Memory;
@@ -19,6 +22,14 @@ const interfaceMemoryData = ({ bus, memory, output, input, controlWord }: Memory
   }
 
   if (input && controlWord.ri) {
+    if (memory.addressRegister === IO_OUTPUT) {
+      process.stdout.write(String(bus.data) + '\n');
+      return { bus, memory };
+    }
+    if (memory.addressRegister === IO_CHAR) {
+      process.stdout.write(String.fromCharCode(bus.data));
+      return { bus, memory };
+    }
     const newMemory = { ...memory };
     newMemory.data[memory.addressRegister] = bus.data;
     return { bus, memory: newMemory };

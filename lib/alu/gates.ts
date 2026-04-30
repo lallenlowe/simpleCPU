@@ -43,4 +43,48 @@ const byteAdder = (a: Byte, b: Byte, c: boolean) => {
   return { sum, carry, overflow };
 };
 
-export { and, or, xor, fullAdder, byteAdder };
+const byteAnd = (a: Byte, b: Byte): Byte => {
+  return a.map((bit, i) => and(bit, b[i]));
+};
+
+const byteOr = (a: Byte, b: Byte): Byte => {
+  return a.map((bit, i) => or(bit, b[i]));
+};
+
+const byteXor = (a: Byte, b: Byte): Byte => {
+  return a.map((bit, i) => xor(bit, b[i]));
+};
+
+const byteNot = (a: Byte): Byte => {
+  return a.map((bit) => !bit);
+};
+
+const byteShiftLeft = (a: Byte): { result: Byte; carry: boolean } => {
+  const carry = a[0];
+  const result: Byte = [...a.slice(1), false];
+  return { result, carry };
+};
+
+const byteShiftRight = (a: Byte): { result: Byte; carry: boolean } => {
+  const carry = a[7];
+  const result: Byte = [false, ...a.slice(0, 7)];
+  return { result, carry };
+};
+
+const byteRotateLeft = (a: Byte, carry: boolean): { result: Byte; carry: boolean } => {
+  const newCarry = a[0];
+  const result: Byte = [...a.slice(1), carry];
+  return { result, carry: newCarry };
+};
+
+const byteRotateRight = (a: Byte, carry: boolean): { result: Byte; carry: boolean } => {
+  const newCarry = a[7];
+  const result: Byte = [carry, ...a.slice(0, 7)];
+  return { result, carry: newCarry };
+};
+
+export {
+  and, or, xor, fullAdder, byteAdder,
+  byteAnd, byteOr, byteXor, byteNot,
+  byteShiftLeft, byteShiftRight, byteRotateLeft, byteRotateRight,
+};
