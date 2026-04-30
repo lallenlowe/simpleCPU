@@ -272,9 +272,9 @@ const incrementInstructionCounter = (register: number, controlWord: ControlWord)
     return 0b000; // reset the instruction counter if the program counter was set on this cycle
   }
 
-  // 3 bit counter, so roll back to zero if it equals 7
-  if (register >= 0b111) {
-    return 0b000;
+  // 4 bit counter, so roll back to zero if it equals 15
+  if (register >= 0b1111) {
+    return 0b0000;
   }
 
   return register + 1;

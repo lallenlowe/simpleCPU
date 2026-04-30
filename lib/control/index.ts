@@ -70,6 +70,72 @@ const instructionMap: InstructionMap = {
   BPL: 0x10, // Branch if negative flag clear | RELATIVE
   BVS: 0x70, // Branch if overflow set | RELATIVE
   BVC: 0x50, // Branch if overflow clear | RELATIVE
+  // Zero page addressing
+  LDAZ: 0xa5, // Load A from zero page | ZERO PAGE
+  STAZ: 0x85, // Store A to zero page | ZERO PAGE
+  LDXZ: 0xa6, // Load X from zero page | ZERO PAGE
+  STXZ: 0x86, // Store X to zero page | ZERO PAGE
+  LDYZ: 0xa4, // Load Y from zero page | ZERO PAGE
+  STYZ: 0x84, // Store Y to zero page | ZERO PAGE
+  ADCZ: 0x65, // Add with carry zero page | ZERO PAGE
+  SBCZ: 0xe5, // Subtract with carry zero page | ZERO PAGE
+  ANDZ: 0x25, // AND zero page | ZERO PAGE
+  ORAZ: 0x05, // ORA zero page | ZERO PAGE
+  EORZ: 0x45, // EOR zero page | ZERO PAGE
+  CMPZ: 0xc5, // Compare A zero page | ZERO PAGE
+  CPXZ: 0xe4, // Compare X zero page | ZERO PAGE
+  CPYZ: 0xc4, // Compare Y zero page | ZERO PAGE
+  BITZ: 0x24, // Bit test zero page | ZERO PAGE
+  ASLZ: 0x06, // ASL zero page | ZERO PAGE
+  LSRZ: 0x46, // LSR zero page | ZERO PAGE
+  ROLZ: 0x26, // ROL zero page | ZERO PAGE
+  RORZ: 0x66, // ROR zero page | ZERO PAGE
+  INCZ: 0xe6, // INC zero page | ZERO PAGE
+  DECZ: 0xc6, // DEC zero page | ZERO PAGE
+  // Zero page indexed
+  LDAZX: 0xb5, // Load A from zero page,X | ZERO PAGE,X
+  STAZX: 0x95, // Store A to zero page,X | ZERO PAGE,X
+  LDYZX: 0xb4, // Load Y from zero page,X | ZERO PAGE,X
+  STYZX: 0x94, // Store Y to zero page,X | ZERO PAGE,X
+  ADCZX: 0x75, // ADC zero page,X | ZERO PAGE,X
+  SBCZX: 0xf5, // SBC zero page,X | ZERO PAGE,X
+  ANDZX: 0x35, // AND zero page,X | ZERO PAGE,X
+  ORAZX: 0x15, // ORA zero page,X | ZERO PAGE,X
+  EORZX: 0x55, // EOR zero page,X | ZERO PAGE,X
+  CMPZX: 0xd5, // CMP zero page,X | ZERO PAGE,X
+  ASLZX: 0x16, // ASL zero page,X | ZERO PAGE,X
+  LSRZX: 0x56, // LSR zero page,X | ZERO PAGE,X
+  ROLZX: 0x36, // ROL zero page,X | ZERO PAGE,X
+  RORZX: 0x76, // ROR zero page,X | ZERO PAGE,X
+  INCZX: 0xf6, // INC zero page,X | ZERO PAGE,X
+  DECZX: 0xd6, // DEC zero page,X | ZERO PAGE,X
+  LDXZY: 0xb6, // Load X from zero page,Y | ZERO PAGE,Y
+  STXZY: 0x96, // Store X to zero page,Y | ZERO PAGE,Y
+  // Absolute indexed
+  LDAAX: 0xbd, // Load A from absolute,X | ABSOLUTE,X
+  STAAX: 0x9d, // Store A to absolute,X | ABSOLUTE,X
+  LDYAX: 0xbc, // Load Y from absolute,X | ABSOLUTE,X
+  ADCAX: 0x7d, // ADC absolute,X | ABSOLUTE,X
+  SBCAX: 0xfd, // SBC absolute,X | ABSOLUTE,X
+  ANDAX: 0x3d, // AND absolute,X | ABSOLUTE,X
+  ORAAX: 0x1d, // ORA absolute,X | ABSOLUTE,X
+  EORAX: 0x5d, // EOR absolute,X | ABSOLUTE,X
+  CMPAX: 0xdd, // CMP absolute,X | ABSOLUTE,X
+  ASLAX: 0x1e, // ASL absolute,X | ABSOLUTE,X
+  LSRAX: 0x5e, // LSR absolute,X | ABSOLUTE,X
+  ROLAX: 0x3e, // ROL absolute,X | ABSOLUTE,X
+  RORAX: 0x7e, // ROR absolute,X | ABSOLUTE,X
+  INCAX: 0xfe, // INC absolute,X | ABSOLUTE,X
+  DECAX: 0xde, // DEC absolute,X | ABSOLUTE,X
+  LDAAY: 0xb9, // Load A from absolute,Y | ABSOLUTE,Y
+  STAAY: 0x99, // Store A to absolute,Y | ABSOLUTE,Y
+  LDXAY: 0xbe, // Load X from absolute,Y | ABSOLUTE,Y
+  ADCAY: 0x79, // ADC absolute,Y | ABSOLUTE,Y
+  SBCAY: 0xf9, // SBC absolute,Y | ABSOLUTE,Y
+  ANDAY: 0x39, // AND absolute,Y | ABSOLUTE,Y
+  ORAAY: 0x19, // ORA absolute,Y | ABSOLUTE,Y
+  EORAY: 0x59, // EOR absolute,Y | ABSOLUTE,Y
+  CMPAY: 0xd9, // CMP absolute,Y | ABSOLUTE,Y
   JSR: 0x20, // Jump to subroutine | ABSOLUTE
   RTS: 0x60, // Return from subroutine | IMPLIED
   PHA: 0x48, // Push accumulator | IMPLIED
@@ -132,6 +198,8 @@ type ControlWord = {
   spdi: boolean; // input stack pointer from data bus
   sto: boolean; // output status register as byte to data bus
   sti: boolean; // input status register from data bus byte
+  dEa: boolean; // address add: aluA + aluB with carry=0, no flag updates
+  dahc: boolean; // add address carry to high byte of bus address register
   if: { flag: string; value: boolean }[]; // Cpu status flags to set immediately
 };
 
@@ -187,6 +255,8 @@ const baseControl: ControlWord = {
   spdi: false, // input stack pointer from data bus
   sto: false, // output status register as byte to data bus
   sti: false, // input status register from data bus byte
+  dEa: false, // address add: aluA + aluB with carry=0, no flag updates
+  dahc: false, // add address carry to high byte of bus address register
   if: [], // Cpu status flags to set immediately
 };
 
@@ -582,6 +652,622 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   [instructionMap.BVC]: {
     O: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, pce: true })],
     0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true, bra: true })],
+  },
+  // Zero page addressing — same as absolute but only 1 address byte (high byte implicitly $00)
+  [instructionMap.LDAZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, ai: true, bac: true, zn: true }),
+    ],
+  },
+  [instructionMap.STAZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ao: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.LDXZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, xi: true, bac: true, zn: true }),
+    ],
+  },
+  [instructionMap.STXZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, xo: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.LDYZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, yi: true, bac: true, zn: true }),
+    ],
+  },
+  [instructionMap.STYZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, yo: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.ADCZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dE: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.SBCZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dS: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.ANDZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dAnd: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.ORAZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dOr: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.EORZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dXor: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.CMPZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dc: true, fi: true }),
+    ],
+  },
+  [instructionMap.CPXZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { xo: true, la: true, dc: true, fi: true }),
+    ],
+  },
+  [instructionMap.CPYZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { yo: true, la: true, dc: true, fi: true }),
+    ],
+  },
+  [instructionMap.BITZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, bit: true, fi: true }),
+    ],
+  },
+  [instructionMap.ASLZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { asl: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.LSRZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { lsr: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.ROLZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { rol: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.RORZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { ror: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.INCZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { c1: true, dE: true, fi: true, if: [{ flag: 'C', value: false }] }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.DECZ]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { c1: true, dS: true, fi: true, if: [{ flag: 'C', value: true }] }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  // Zero page,X indexed — base + X through ALU with carry=0
+  [instructionMap.LDAZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, ai: true, bac: true, zn: true }),
+    ],
+  },
+  [instructionMap.STAZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ao: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.LDYZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, yi: true, bac: true, zn: true }),
+    ],
+  },
+  [instructionMap.STYZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, yo: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.ADCZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dE: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.SBCZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dS: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.ANDZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dAnd: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.ORAZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dOr: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.EORZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dXor: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.CMPZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dc: true, fi: true }),
+    ],
+  },
+  [instructionMap.ASLZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { asl: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.LSRZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { lsr: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.ROLZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { rol: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.RORZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { ror: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.INCZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { c1: true, dE: true, fi: true, if: [{ flag: 'C', value: false }] }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.DECZX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { c1: true, dS: true, fi: true, if: [{ flag: 'C', value: true }] }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  // Zero page,Y indexed
+  [instructionMap.LDXZY]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { yo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, xi: true, bac: true, zn: true }),
+    ],
+  },
+  [instructionMap.STXZY]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { yo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, xo: true, ri: true, bac: true }),
+    ],
+  },
+  // Absolute,X indexed
+  [instructionMap.LDAAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, ai: true, bac: true, zn: true }),
+    ],
+  },
+  [instructionMap.STAAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ao: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.LDYAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, yi: true, bac: true, zn: true }),
+    ],
+  },
+  [instructionMap.ADCAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dE: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.SBCAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dS: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.ANDAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dAnd: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.ORAAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dOr: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.EORAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dXor: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.CMPAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dc: true, fi: true }),
+    ],
+  },
+  [instructionMap.ASLAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { asl: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.LSRAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { lsr: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.ROLAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { rol: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.RORAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { ror: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.INCAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { c1: true, dE: true, fi: true, if: [{ flag: 'C', value: false }] }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.DECAX]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { xo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
+      Object.assign({ ...baseControl }, { c1: true, dS: true, fi: true, if: [{ flag: 'C', value: true }] }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+    ],
+  },
+  // Absolute,Y indexed
+  [instructionMap.LDAAY]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { yo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, ai: true, bac: true, zn: true }),
+    ],
+  },
+  [instructionMap.STAAY]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { yo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ao: true, ri: true, bac: true }),
+    ],
+  },
+  [instructionMap.LDXAY]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { yo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, xi: true, bac: true, zn: true }),
+    ],
+  },
+  [instructionMap.ADCAY]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { yo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dE: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.SBCAY]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { yo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dS: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.ANDAY]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { yo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dAnd: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.ORAAY]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { yo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dOr: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.EORAY]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { yo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dXor: true, fi: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true }),
+    ],
+  },
+  [instructionMap.CMPAY]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { yo: true, lb: true }),
+      Object.assign({ ...baseControl }, { dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, lb: true, bac: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, dc: true, fi: true }),
+    ],
   },
   // Stack operations
   [instructionMap.JSR]: {

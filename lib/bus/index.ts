@@ -152,6 +152,10 @@ const interfaceAllRegisters = (
   mainBus = dataToAddressLow(mainBus, controlWord.dal);
   mainBus = dataToAddressHigh(mainBus, controlWord.dah);
 
+  if (controlWord.dahc && cpuRegisters.addressCarry) {
+    mainBus = { ...mainBus, addressRegister: (mainBus.addressRegister + 0x100) & 0xffff };
+  }
+
   return { cpuRegisters, mainBus, systemMemory, inputDevice: machineState.inputDevice };
 };
 

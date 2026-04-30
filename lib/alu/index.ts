@@ -17,6 +17,7 @@ const operate = ({
   controlWord: ControlWord;
 }): CpuRegisters => {
   let newRegisters = add(registers, controlWord);
+  newRegisters = addressAdd(newRegisters, controlWord);
   newRegisters = subtract(newRegisters, controlWord);
   newRegisters = bitwiseAnd(newRegisters, controlWord);
   newRegisters = bitwiseOr(newRegisters, controlWord);
@@ -50,6 +51,21 @@ const add = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters =>
     return newRegisters;
   }
 
+  return registers;
+};
+
+const addressAdd = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+  if (controlWord.dEa) {
+    const newRegisters: CpuRegisters = { ...registers };
+    const { sum, carry } = byteAdder(
+      numberToByte(newRegisters.aluA),
+      numberToByte(newRegisters.aluB),
+      false,
+    );
+    newRegisters.s = byteToNumber(sum);
+    newRegisters.addressCarry = carry;
+    return newRegisters;
+  }
   return registers;
 };
 

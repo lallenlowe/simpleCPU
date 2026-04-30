@@ -1,7 +1,7 @@
 ; simpleCPU test suite
 ; Exercises every implemented instruction
 ; Output to $FE00 — each STA $FE00 prints a test result
-; Expected output: 1 through 34, then 3 2 1 35, 36 37 38 39 40, then Hello World!
+; Expected output: 1 through 34, then 3 2 1 35, 36-58, then Hello World!
 
 * = $0200
 
@@ -15,9 +15,9 @@
         STA $FE00       ; output 2
 
 ; --- Test 3: STA / LDA absolute ---
-        STA $0500       ; store 2 at $0500
+        STA $0600       ; store 2 at $0600
         LDA #$00        ; clear A
-        LDA $0500       ; reload from $0500, A=2
+        LDA $0600       ; reload from $0600, A=2
         CLC
         ADC #$01        ; A=3
         STA $FE00       ; output 3
@@ -52,22 +52,22 @@
 
 ; --- Test 10: LDX absolute ---
         LDA #$0A
-        STA $0500
-        LDX $0500       ; X=10
+        STA $0600
+        LDX $0600       ; X=10
         STX $FE00       ; output 10
 
 ; --- Test 11: LDY absolute ---
         LDA #$0B
-        STA $0500
-        LDY $0500       ; Y=11
+        STA $0600
+        LDY $0600       ; Y=11
         STY $FE00       ; output 11
 
 ; --- Test 12: ADC absolute ---
         LDA #$06
-        STA $0500       ; store 6
+        STA $0600       ; store 6
         LDA #$06
         CLC
-        ADC $0500       ; A=6+6=12
+        ADC $0600       ; A=6+6=12
         STA $FE00       ; output 12
 
 ; --- Test 13: SBC immediate ---
@@ -78,10 +78,10 @@
 
 ; --- Test 14: SBC absolute ---
         LDA #$04
-        STA $0500       ; store 4
+        STA $0600       ; store 4
         LDA #$12        ; A=18
         SEC
-        SBC $0500       ; A=18-4=14
+        SBC $0600       ; A=18-4=14
         STA $FE00       ; output 14
 
 ; --- Test 15: AND immediate ---
@@ -91,9 +91,9 @@
 
 ; --- Test 16: AND absolute ---
         LDA #$F0
-        STA $0500
+        STA $0600
         LDA #$1F
-        AND $0500       ; A=$1F & $F0 = $10 = 16
+        AND $0600       ; A=$1F & $F0 = $10 = 16
         STA $FE00       ; output 16
 
 ; --- Test 17: ORA immediate ---
@@ -103,9 +103,9 @@
 
 ; --- Test 18: ORA absolute ---
         LDA #$02
-        STA $0500
+        STA $0600
         LDA #$10
-        ORA $0500       ; A=$10 | $02 = $12 = 18
+        ORA $0600       ; A=$10 | $02 = $12 = 18
         STA $FE00       ; output 18
 
 ; --- Test 19: EOR immediate ---
@@ -125,9 +125,9 @@
 ; need A XOR mem = 20 = $14 = 00010100
 ; $FF ^ $EB = $14? $EB=11101011 XOR $FF=11111111 = 00010100 = $14 = 20 yes
         LDA #$EB
-        STA $0500
+        STA $0600
         LDA #$FF
-        EOR $0500       ; A=$FF ^ $EB = $14 = 20
+        EOR $0600       ; A=$FF ^ $EB = $14 = 20
         STA $FE00       ; output 20
 
 ; --- Test 21: ASL accumulator ---
@@ -168,10 +168,10 @@
         STX $FE00       ; output 25
 ; verify Y survived
         LDA #$AA
-        STA $0500
-        STY $0501
-        LDA $0501
-        CMP $0500       ; Y should still be $AA
+        STA $0600
+        STY $0601
+        LDA $0601
+        CMP $0600       ; Y should still be $AA
 ; (if Z is not set, something went wrong — but we can't branch yet)
 
 ; --- Test 26: INY / DEY ---
@@ -181,10 +181,10 @@
         STY $FE00       ; output 26
 ; verify X survived
         LDA #$BB
-        STA $0500
-        STX $0501
-        LDA $0501
-        CMP $0500       ; X should still be $BB
+        STA $0600
+        STX $0601
+        LDA $0601
+        CMP $0600       ; X should still be $BB
 
 ; --- Test 27: BEQ (branch if Z=1) ---
         LDA #$00        ; Z=1
@@ -286,19 +286,162 @@ COUNT   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
 ; --- Test 40: Nested JSR ---
         JSR SUB40       ; calls SUB40B which outputs 40
 
+; --- Test 41: LDA/STA zero page ---
+        LDA #$29        ; 41
+        STA $40         ; store 41 to zero page $40
+        LDA #$00        ; clear A
+        LDA $40         ; reload from zero page
+        STA $FE00       ; output 41
+
+; --- Test 42: LDX/STX zero page ---
+        LDX #$2A        ; 42
+        STX $41         ; store to zero page $41
+        LDX #$00        ; clear X
+        LDX $41         ; reload from zero page
+        STX $FE00       ; output 42
+
+; --- Test 43: LDY/STY zero page ---
+        LDY #$2B        ; 43
+        STY $42         ; store to zero page $42
+        LDY #$00        ; clear Y
+        LDY $42         ; reload from zero page
+        STY $FE00       ; output 43
+
+; --- Test 44: ADC zero page ---
+        LDA #$14        ; 20
+        STA $40         ; store 20 to ZP
+        LDA #$18        ; 24
+        CLC
+        ADC $40         ; 24+20=44
+        STA $FE00       ; output 44
+
+; --- Test 45: SBC zero page ---
+        LDA #$05
+        STA $40
+        LDA #$32        ; 50
+        SEC
+        SBC $40         ; 50-5=45
+        STA $FE00       ; output 45
+
+; --- Test 46: AND/ORA/EOR zero page ---
+        LDA #$FE
+        STA $40
+        LDA #$2F        ; $2F = 47
+        AND $40         ; $2F & $FE = $2E = 46
+        STA $FE00       ; output 46
+
+; --- Test 47: CMP zero page ---
+        LDA #$2F        ; 47
+        STA $40
+        LDA #$2F
+        CMP $40         ; Z=1 (equal)
+        BEQ T47OK
+        BRK
+T47OK   LDA #$2F        ; 47
+        STA $FE00       ; output 47
+
+; --- Test 48: INC/DEC zero page ---
+        LDA #$2F        ; 47
+        STA $40
+        INC $40         ; ZP[$40] = 48
+        LDA $40
+        STA $FE00       ; output 48
+
+; --- Test 49: LDA/STA zero page,X ---
+        LDA #$31        ; 49
+        LDX #$05
+        STA $40,X       ; store 49 to ZP[$45]
+        LDA #$00        ; clear A
+        LDA $40,X       ; load from ZP[$45]
+        STA $FE00       ; output 49
+
+; --- Test 50: LDX/STX zero page,Y ---
+        LDX #$32        ; 50
+        LDY #$03
+        STX $50,Y       ; store 50 to ZP[$53]
+        LDX #$00        ; clear X
+        LDX $50,Y       ; load from ZP[$53]
+        STX $FE00       ; output 50
+
+; --- Test 51: ADC zero page,X ---
+        LDA #$19        ; 25
+        LDX #$02
+        STA $60,X       ; store 25 to ZP[$62]
+        LDA #$1A        ; 26
+        CLC
+        ADC $60,X       ; 26+25=51
+        STA $FE00       ; output 51
+
+; --- Test 52: INC zero page,X ---
+        LDA #$33        ; 51
+        LDX #$04
+        STA $70,X       ; store 51 to ZP[$74]
+        INC $70,X       ; ZP[$74]=52
+        LDA $70,X
+        STA $FE00       ; output 52
+
+; --- Test 53: ZP,X wraps within zero page ---
+        LDA #$35        ; 53
+        LDX #$10
+        STA $F5,X       ; $F5+$10=$105, wraps to $05
+        LDA #$00
+        LDA $F5,X       ; load from ZP[$05]
+        STA $FE00       ; output 53
+
+; --- Test 54: LDA/STA absolute,X ---
+        LDA #$36        ; 54
+        LDX #$03
+        STA $0600,X     ; store 54 to $0503
+        LDA #$00
+        LDA $0600,X     ; load from $0503
+        STA $FE00       ; output 54
+
+; --- Test 55: LDA absolute,Y ---
+        LDA #$37        ; 55
+        LDY #$05
+        STA $0600,Y     ; store 55 to $0505
+        LDA #$00
+        LDA $0600,Y     ; load from $0505
+        STA $FE00       ; output 55
+
+; --- Test 56: ADC absolute,X ---
+        LDA #$1C        ; 28
+        LDX #$02
+        STA $0600,X     ; store 28 to $0502
+        LDA #$1C        ; 28
+        CLC
+        ADC $0600,X     ; 28+28=56
+        STA $FE00       ; output 56
+
+; --- Test 57: Page crossing absolute,X ---
+        LDA #$39        ; 57
+        LDX #$01
+        STA $05FF,X     ; $05FF+1=$0600, crosses page
+        LDA #$00
+        LDA $05FF,X     ; load from $0600 (page crossing)
+        STA $FE00       ; output 57
+
+; --- Test 58: Page crossing absolute,Y ---
+        LDA #$3A        ; 58
+        LDY #$02
+        STA $05FF,Y     ; $05FF+2=$0601, crosses page
+        LDA #$00
+        LDA $05FF,Y     ; load from $0601
+        STA $FE00       ; output 58
+
 ; --- Smoke tests for remaining instructions (no output, just must not crash) ---
 
 ; STX / STY absolute
         LDX #$42
-        STX $0500
+        STX $0600
         LDY #$43
-        STY $0501
+        STY $0601
 
 ; INC / DEC memory
         LDA #$09
-        STA $0500
-        INC $0500       ; mem[$0500]=10
-        DEC $0500       ; mem[$0500]=9
+        STA $0600
+        INC $0600       ; mem[$0600]=10
+        DEC $0600       ; mem[$0600]=9
 
 ; CMP immediate / absolute
         LDA #$05
@@ -306,9 +449,9 @@ COUNT   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
         CMP #$06        ; Z=0, C=0
 
         LDA #$05
-        STA $0500
+        STA $0600
         LDA #$05
-        CMP $0500       ; Z=1, C=1
+        CMP $0600       ; Z=1, C=1
 
 ; CPX immediate / absolute
         LDX #$10
@@ -316,8 +459,8 @@ COUNT   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
         CPX #$11        ; Z=0, C=0
 
         LDA #$10
-        STA $0500
-        CPX $0500       ; Z=1, C=1
+        STA $0600
+        CPX $0600       ; Z=1, C=1
 
 ; CPY immediate / absolute
         LDY #$20
@@ -325,24 +468,24 @@ COUNT   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
         CPY #$21        ; Z=0, C=0
 
         LDA #$20
-        STA $0500
-        CPY $0500       ; Z=1, C=1
+        STA $0600
+        CPY $0600       ; Z=1, C=1
 
 ; ASL / LSR / ROL / ROR absolute
         LDA #$02
-        STA $0500
-        ASL $0500       ; mem[$0500]=4
-        LSR $0500       ; mem[$0500]=2
+        STA $0600
+        ASL $0600       ; mem[$0600]=4
+        LSR $0600       ; mem[$0600]=2
         CLC
-        ROL $0500       ; mem[$0500]=4
+        ROL $0600       ; mem[$0600]=4
         CLC
-        ROR $0500       ; mem[$0500]=2
+        ROR $0600       ; mem[$0600]=2
 
 ; BIT absolute
         LDA #$FF
-        STA $0500
+        STA $0600
         LDA #$0F
-        BIT $0500       ; Z=0 (0F & FF != 0), N=1, V=1
+        BIT $0600       ; Z=0 (0F & FF != 0), N=1, V=1
 
 ; SEC / CLC
         SEC
