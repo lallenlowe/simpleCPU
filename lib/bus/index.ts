@@ -4,11 +4,13 @@ import { Bus, CpuRegisters, Memory, setupBus } from '../initial-state';
 import { ControlWord } from '../control';
 import { interfaceMemoryAddress, interfaceMemoryData } from '../memory';
 import { interfaceAllAddressRegisters, interfaceAllDataRegisters } from '../register';
+import { InputDevice } from '../memory/input-device';
 
 type MachineState = {
   cpuRegisters: CpuRegisters;
   mainBus: Bus;
   systemMemory: Memory;
+  inputDevice: InputDevice;
 };
 
 const outputToDataBus = ({ bus, data }: { bus: Bus; data: number }) => {
@@ -90,6 +92,7 @@ const interfaceAllRegisters = (
     output: true,
     input: false,
     controlWord,
+    inputDevice: machineState.inputDevice,
   }));
 
   /* Input pass next since real hardware is parallel and this is synchronous */
@@ -107,6 +110,7 @@ const interfaceAllRegisters = (
     output: false,
     input: true,
     controlWord,
+    inputDevice: machineState.inputDevice,
   }));
 
   /* Another output pass since we have 2 busses, data and address */
@@ -124,6 +128,7 @@ const interfaceAllRegisters = (
     output: true,
     input: false,
     controlWord,
+    inputDevice: machineState.inputDevice,
   }));
 
   /* Another input pass since we have 2 busses, data and address */
@@ -141,12 +146,13 @@ const interfaceAllRegisters = (
     output: false,
     input: true,
     controlWord,
+    inputDevice: machineState.inputDevice,
   }));
 
   mainBus = dataToAddressLow(mainBus, controlWord.dal);
   mainBus = dataToAddressHigh(mainBus, controlWord.dah);
 
-  return { cpuRegisters, mainBus, systemMemory };
+  return { cpuRegisters, mainBus, systemMemory, inputDevice: machineState.inputDevice };
 };
 
 export {
