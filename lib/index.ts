@@ -17,6 +17,10 @@ const cycle = (machineState: MachineState) => {
 
   cpuRegisters = setImmediateFlags({ controlWord, cpuRegisters });
 
+  if (controlWord.c1) {
+    cpuRegisters.aluB = 1;
+  }
+
   cpuRegisters = alu.operate({ registers: cpuRegisters, controlWord });
 
   cpuRegisters.pc = incrementProgramCounter(cpuRegisters.pc, controlWord.pce);

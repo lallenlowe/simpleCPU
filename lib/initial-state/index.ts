@@ -14,7 +14,9 @@ type CpuRegisters = {
   x: number; // 8 bit x register
   y: number; // 8 bit y register
   a: number; // 8 bit accumulator register
-  s: number; // 8 bit sum register
+  s: number; // 8 bit sum register (ALU output latch)
+  aluA: number; // 8 bit ALU input latch A
+  aluB: number; // 8 bit ALU input latch B
   i: number; // instruction register
   ic: number; // instruction counter
   pc: number; // 16 bit program counter
@@ -50,6 +52,8 @@ const setupCpuRegisters = (): CpuRegisters => {
     y: 0b00000000,
     a: 0b00000000,
     s: 0b00000000,
+    aluA: 0b00000000,
+    aluB: 0b00000000,
     i: 0b0000000000000000,
     ic: 0b00000000,
     pc: 0b0000000000000000,
