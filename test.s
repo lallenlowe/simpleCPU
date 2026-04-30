@@ -263,6 +263,34 @@
         NOP
 
 ; JMP
-        JMP DONE
+        JMP HELLO
         BRK             ; should be skipped
-DONE    BRK             ; halt
+
+; --- Hello World via character I/O at $FE01 ---
+HELLO   LDA #$48        ; 'H'
+        STA $FE01
+        LDA #$65        ; 'e'
+        STA $FE01
+        LDA #$6C        ; 'l'
+        STA $FE01
+        LDA #$6C        ; 'l'
+        STA $FE01
+        LDA #$6F        ; 'o'
+        STA $FE01
+        LDA #$20        ; ' '
+        STA $FE01
+        LDA #$57        ; 'W'
+        STA $FE01
+        LDA #$6F        ; 'o'
+        STA $FE01
+        LDA #$72        ; 'r'
+        STA $FE01
+        LDA #$6C        ; 'l'
+        STA $FE01
+        LDA #$64        ; 'd'
+        STA $FE01
+        LDA #$21        ; '!'
+        STA $FE01
+        LDA #$0A        ; newline
+        STA $FE01
+        BRK             ; halt
