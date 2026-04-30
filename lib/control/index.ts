@@ -7,7 +7,6 @@ type InstructionMap = { [key: string]: number };
 
 const instructionMap: InstructionMap = {
   HLT: 0x00, // Halt the computer, stop the whole program | IMPLIED
-  OTA: 0x02, // Output the value of the a register | IMPLIED
   NOP: 0xea, // No Operation, | IMPLIED
   CLC: 0x18, // Clear the carry flag | IMPLIED
   SEC: 0x38, // Set the carry flag | IMPLIED
@@ -163,7 +162,6 @@ const loadNextInstruction: MicroInstructions = [
 
 const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   [instructionMap.HLT]: { 0: [Object.assign({ ...baseControl }, { ht: true })] },
-  [instructionMap.OTA]: { 0: [Object.assign({ ...baseControl }, { ao: true, oi: true })] },
   [instructionMap.NOP]: { 0: [] },
   [instructionMap.SEC]: {
     0: [Object.assign({ ...baseControl }, { if: [{ flag: 'C', value: true }] })],

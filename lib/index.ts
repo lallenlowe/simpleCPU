@@ -27,10 +27,6 @@ const cycle = (machineState: MachineState) => {
 
   cpuRegisters.ic = incrementInstructionCounter(cpuRegisters.ic, controlWord);
 
-  if (controlWord.oi) {
-    console.log(cpuRegisters.o + (cpuRegisters.status.C ? 256 : 0));
-  }
-
   const newMachineState: MachineState = { cpuRegisters, mainBus, systemMemory };
   if (!controlWord.ht) {
     setTimeout(() => cycle(newMachineState), 10);
