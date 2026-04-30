@@ -3,9 +3,12 @@
 import { outputToAddressBus, outputToDataBus } from '../bus';
 import { Bus, Memory } from '../initial-state';
 import { ControlWord } from '../control';
+import { InputDevice, hasData, readByte } from './input-device';
 
 const IO_OUTPUT = 0xfe00;
 const IO_CHAR = 0xfe01;
+const IO_INPUT_STATUS = 0xfe02;
+const IO_INPUT_DATA = 0xfe03;
 
 type MemoryInterface = {
   bus: Bus;
@@ -13,10 +16,19 @@ type MemoryInterface = {
   output: boolean;
   input: boolean;
   controlWord: ControlWord;
+  inputDevice: InputDevice;
 };
 
-const interfaceMemoryData = ({ bus, memory, output, input, controlWord }: MemoryInterface) => {
+const interfaceMemoryData = ({ bus, memory, output, input, controlWord, inputDevice }: MemoryInterface) => {
   if (output && controlWord.ro) {
+    if (memory.addressRegister === IO_INPUT_STATUS) {
+      const newBus = outputToDataBus({ bus, data: hasData(inputDevice) ? 1 : 0 });
+      return { bus: newBus, memory };
+    }
+    if (memory.addressRegister === IO_INPUT_DATA) {
+      const newBus = outputToDataBus({ bus, data: readByte(inputDevice) });
+      return { bus: newBus, memory };
+    }
     const newBus = outputToDataBus({ bus, data: memory.data[memory.addressRegister] });
     return { bus: newBus, memory };
   }

@@ -5,6 +5,7 @@ import { incrementProgramCounter, incrementInstructionCounter } from './register
 import { setImmediateFlags, getControlWord } from './control';
 import * as alu from './alu';
 import { MachineState, clearBus, interfaceAllRegisters } from './bus';
+import { createInputDevice, setupStdin, teardownStdin } from './memory/input-device';
 
 const cycle = (machineState: MachineState): MachineState => {
   const controlWord = getControlWord(machineState.cpuRegisters);
@@ -37,7 +38,7 @@ const cycle = (machineState: MachineState): MachineState => {
 
   cpuRegisters.ic = incrementInstructionCounter(cpuRegisters.ic, controlWord);
 
-  return { cpuRegisters, mainBus, systemMemory };
+  return { cpuRegisters, mainBus, systemMemory, inputDevice: machineState.inputDevice };
 };
 
 const run = (machineState: MachineState): void => {
@@ -46,6 +47,7 @@ const run = (machineState: MachineState): void => {
     const controlWord = getControlWord(state.cpuRegisters);
     state = cycle(state);
     if (controlWord.ht) {
+      teardownStdin(state.inputDevice);
       return;
     }
   }
@@ -64,8 +66,10 @@ const start = () => {
   const mainBus = setupBus();
   let systemMemory = setupMemory();
   systemMemory = loadBinFileToMemory(systemMemory, binFile);
+  const inputDevice = createInputDevice();
+  setupStdin(inputDevice);
 
-  run({ cpuRegisters, mainBus, systemMemory });
+  run({ cpuRegisters, mainBus, systemMemory, inputDevice });
 };
 
 export { start };
