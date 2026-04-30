@@ -70,6 +70,14 @@ const instructionMap: InstructionMap = {
   BPL: 0x10, // Branch if negative flag clear | RELATIVE
   BVS: 0x70, // Branch if overflow set | RELATIVE
   BVC: 0x50, // Branch if overflow clear | RELATIVE
+  JSR: 0x20, // Jump to subroutine | ABSOLUTE
+  RTS: 0x60, // Return from subroutine | IMPLIED
+  PHA: 0x48, // Push accumulator | IMPLIED
+  PLA: 0x68, // Pull accumulator | IMPLIED
+  PHP: 0x08, // Push processor status | IMPLIED
+  PLP: 0x28, // Pull processor status | IMPLIED
+  TXS: 0x9a, // Transfer X to stack pointer | IMPLIED
+  TSX: 0xba, // Transfer stack pointer to X | IMPLIED
 };
 
 type ControlWord = {
@@ -116,6 +124,14 @@ type ControlWord = {
   zn: boolean; // set Z and N flags from data bus value
   fi: boolean; // cpu status flags in
   ht: boolean; // halt the computer
+  spd: boolean; // decrement stack pointer (post-write)
+  spu: boolean; // increment stack pointer (pre-read)
+  pcho: boolean; // output PC high byte to data bus
+  pclo: boolean; // output PC low byte to data bus
+  spdo: boolean; // output stack pointer to data bus
+  spdi: boolean; // input stack pointer from data bus
+  sto: boolean; // output status register as byte to data bus
+  sti: boolean; // input status register from data bus byte
   if: { flag: string; value: boolean }[]; // Cpu status flags to set immediately
 };
 
@@ -163,6 +179,14 @@ const baseControl: ControlWord = {
   zn: false, // set Z and N flags from data bus value
   fi: false, // cpu status flags in
   ht: false, // halt the computer
+  spd: false, // decrement stack pointer (post-write)
+  spu: false, // increment stack pointer (pre-read)
+  pcho: false, // output PC high byte to data bus
+  pclo: false, // output PC low byte to data bus
+  spdo: false, // output stack pointer to data bus
+  spdi: false, // input stack pointer from data bus
+  sto: false, // output status register as byte to data bus
+  sti: false, // input status register from data bus byte
   if: [], // Cpu status flags to set immediately
 };
 
@@ -558,6 +582,53 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   [instructionMap.BVC]: {
     O: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, pce: true })],
     0: [Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, la: true, pce: true, bra: true })],
+  },
+  // Stack operations
+  [instructionMap.JSR]: {
+    0: [
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { spo: true, mi: true, pcho: true, ri: true, spd: true }),
+      Object.assign({ ...baseControl }, { spo: true, mi: true, pclo: true, ri: true, spd: true }),
+      Object.assign({ ...baseControl }, { bao: true, pcai: true, bac: true }),
+    ],
+  },
+  [instructionMap.RTS]: {
+    0: [
+      Object.assign({ ...baseControl }, { spu: true }),
+      Object.assign({ ...baseControl }, { spo: true, mi: true, ro: true, dal: true }),
+      Object.assign({ ...baseControl }, { spu: true }),
+      Object.assign({ ...baseControl }, { spo: true, mi: true, ro: true, dah: true }),
+      Object.assign({ ...baseControl }, { bao: true, pcai: true, bac: true }),
+    ],
+  },
+  [instructionMap.PHA]: {
+    0: [
+      Object.assign({ ...baseControl }, { spo: true, mi: true, ao: true, ri: true, spd: true }),
+    ],
+  },
+  [instructionMap.PLA]: {
+    0: [
+      Object.assign({ ...baseControl }, { spu: true }),
+      Object.assign({ ...baseControl }, { spo: true, mi: true, ro: true, ai: true, zn: true }),
+    ],
+  },
+  [instructionMap.PHP]: {
+    0: [
+      Object.assign({ ...baseControl }, { spo: true, mi: true, sto: true, ri: true, spd: true }),
+    ],
+  },
+  [instructionMap.PLP]: {
+    0: [
+      Object.assign({ ...baseControl }, { spu: true }),
+      Object.assign({ ...baseControl }, { spo: true, mi: true, ro: true, sti: true }),
+    ],
+  },
+  [instructionMap.TXS]: {
+    0: [Object.assign({ ...baseControl }, { xo: true, spdi: true })],
+  },
+  [instructionMap.TSX]: {
+    0: [Object.assign({ ...baseControl }, { spdo: true, xi: true, zn: true })],
   },
 };
 

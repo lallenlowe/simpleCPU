@@ -5,6 +5,8 @@
 ;   $FE02 = input status (1 = data ready)
 ;   $FE03 = input data (reading clears status)
 
+* = $0200
+
 poll:
   LDA $FE02       ; check if input ready
   BEQ poll        ; loop until data available

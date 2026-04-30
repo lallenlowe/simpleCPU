@@ -130,12 +130,9 @@ const interfaceAllAddressRegisters = ({
     input: input && controlWord.pcai,
   }));
 
-  ({ bus: mainBus, register: cpuRegisters.sp } = interfaceRegisterAddress({
-    bus: mainBus,
-    register: cpuRegisters.sp,
-    output: output && controlWord.spo,
-    input: input && controlWord.spi,
-  }));
+  if (output && controlWord.spo) {
+    mainBus = outputToAddressBus({ bus: mainBus, address: 0x0100 | cpuRegisters.sp });
+  }
 
   return { bus: mainBus, registers: cpuRegisters };
 };
@@ -205,7 +202,52 @@ const interfaceAllDataRegisters = ({
     input: input && controlWord.lb,
   }));
 
+  if (output && controlWord.pcho) {
+    mainBus = outputToDataBus({ bus: mainBus, data: (cpuRegisters.pc >> 8) & 0xff });
+  }
+  if (output && controlWord.pclo) {
+    mainBus = outputToDataBus({ bus: mainBus, data: cpuRegisters.pc & 0xff });
+  }
+  if (output && controlWord.spdo) {
+    mainBus = outputToDataBus({ bus: mainBus, data: cpuRegisters.sp });
+  }
+  if (output && controlWord.sto) {
+    mainBus = outputToDataBus({ bus: mainBus, data: statusToByte(cpuRegisters.status) });
+  }
+
+  if (input && controlWord.spdi) {
+    cpuRegisters.sp = mainBus.data;
+  }
+  if (input && controlWord.sti) {
+    cpuRegisters.status = byteToStatus(mainBus.data);
+  }
+
   return { bus: mainBus, registers: cpuRegisters };
+};
+
+const statusToByte = (status: CpuRegisters['status']): number => {
+  return (
+    (status.N ? 0x80 : 0) |
+    (status.O ? 0x40 : 0) |
+    0x20 |
+    (status.B ? 0x10 : 0) |
+    (status.D ? 0x08 : 0) |
+    (status.I ? 0x04 : 0) |
+    (status.Z ? 0x02 : 0) |
+    (status.C ? 0x01 : 0)
+  );
+};
+
+const byteToStatus = (byte: number): CpuRegisters['status'] => {
+  return {
+    N: (byte & 0x80) !== 0,
+    O: (byte & 0x40) !== 0,
+    B: (byte & 0x10) !== 0,
+    D: (byte & 0x08) !== 0,
+    I: (byte & 0x04) !== 0,
+    Z: (byte & 0x02) !== 0,
+    C: (byte & 0x01) !== 0,
+  };
 };
 
 const incrementProgramCounter = (register: number, counterEnable: boolean): number => {

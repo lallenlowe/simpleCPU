@@ -57,7 +57,7 @@ const setupCpuRegisters = (): CpuRegisters => {
     i: 0b0000000000000000,
     ic: 0b00000000,
     pc: 0b0000000000000000,
-    sp: 0b00000000,
+    sp: 0xff,
     o: 0b00000000,
     status: {
       C: false,
@@ -84,16 +84,15 @@ const setupMemory = (): Memory => {
   return mem;
 };
 
+const LOAD_ADDRESS = 0x0200;
+
 const loadBinFileToMemory = (memory: Memory, fileName: string): Memory => {
   const newMemory = { ...memory };
   const file = fs.readFileSync(fileName, { encoding: 'hex' });
   const chunks = file.match(/.{2}/g) || [];
-  const memoryContents: number[] = [];
   chunks.forEach((chunk, index) => {
-    memoryContents[index] = parseInt(chunk, 16);
+    newMemory.data[LOAD_ADDRESS + index] = parseInt(chunk, 16);
   });
-
-  newMemory.data = memoryContents;
 
   return newMemory;
 };
@@ -103,6 +102,7 @@ export {
   Bus,
   CpuRegisters,
   Memory,
+  LOAD_ADDRESS,
   setupBus,
   setupCpuRegisters,
   setupMemory,

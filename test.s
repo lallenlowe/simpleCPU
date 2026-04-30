@@ -1,9 +1,9 @@
 ; simpleCPU test suite
 ; Exercises every implemented instruction
 ; Output to $FE00 — each STA $FE00 prints a test result
-; Expected output: 1 through 34, then 3 2 1 35, then Hello World!
+; Expected output: 1 through 34, then 3 2 1 35, 36 37 38 39 40, then Hello World!
 
-* = $0000
+* = $0200
 
 ; --- Test 1: LDA immediate ---
         LDA #$01        ; A=1
@@ -15,9 +15,9 @@
         STA $FE00       ; output 2
 
 ; --- Test 3: STA / LDA absolute ---
-        STA $0300       ; store 2 at $0300
+        STA $0500       ; store 2 at $0500
         LDA #$00        ; clear A
-        LDA $0300       ; reload from $0300, A=2
+        LDA $0500       ; reload from $0500, A=2
         CLC
         ADC #$01        ; A=3
         STA $FE00       ; output 3
@@ -52,22 +52,22 @@
 
 ; --- Test 10: LDX absolute ---
         LDA #$0A
-        STA $0300
-        LDX $0300       ; X=10
+        STA $0500
+        LDX $0500       ; X=10
         STX $FE00       ; output 10
 
 ; --- Test 11: LDY absolute ---
         LDA #$0B
-        STA $0300
-        LDY $0300       ; Y=11
+        STA $0500
+        LDY $0500       ; Y=11
         STY $FE00       ; output 11
 
 ; --- Test 12: ADC absolute ---
         LDA #$06
-        STA $0300       ; store 6
+        STA $0500       ; store 6
         LDA #$06
         CLC
-        ADC $0300       ; A=6+6=12
+        ADC $0500       ; A=6+6=12
         STA $FE00       ; output 12
 
 ; --- Test 13: SBC immediate ---
@@ -78,10 +78,10 @@
 
 ; --- Test 14: SBC absolute ---
         LDA #$04
-        STA $0300       ; store 4
+        STA $0500       ; store 4
         LDA #$12        ; A=18
         SEC
-        SBC $0300       ; A=18-4=14
+        SBC $0500       ; A=18-4=14
         STA $FE00       ; output 14
 
 ; --- Test 15: AND immediate ---
@@ -91,9 +91,9 @@
 
 ; --- Test 16: AND absolute ---
         LDA #$F0
-        STA $0300
+        STA $0500
         LDA #$1F
-        AND $0300       ; A=$1F & $F0 = $10 = 16
+        AND $0500       ; A=$1F & $F0 = $10 = 16
         STA $FE00       ; output 16
 
 ; --- Test 17: ORA immediate ---
@@ -103,9 +103,9 @@
 
 ; --- Test 18: ORA absolute ---
         LDA #$02
-        STA $0300
+        STA $0500
         LDA #$10
-        ORA $0300       ; A=$10 | $02 = $12 = 18
+        ORA $0500       ; A=$10 | $02 = $12 = 18
         STA $FE00       ; output 18
 
 ; --- Test 19: EOR immediate ---
@@ -125,9 +125,9 @@
 ; need A XOR mem = 20 = $14 = 00010100
 ; $FF ^ $EB = $14? $EB=11101011 XOR $FF=11111111 = 00010100 = $14 = 20 yes
         LDA #$EB
-        STA $0300
+        STA $0500
         LDA #$FF
-        EOR $0300       ; A=$FF ^ $EB = $14 = 20
+        EOR $0500       ; A=$FF ^ $EB = $14 = 20
         STA $FE00       ; output 20
 
 ; --- Test 21: ASL accumulator ---
@@ -168,10 +168,10 @@
         STX $FE00       ; output 25
 ; verify Y survived
         LDA #$AA
-        STA $0300
-        STY $0301
-        LDA $0301
-        CMP $0300       ; Y should still be $AA
+        STA $0500
+        STY $0501
+        LDA $0501
+        CMP $0500       ; Y should still be $AA
 ; (if Z is not set, something went wrong — but we can't branch yet)
 
 ; --- Test 26: INY / DEY ---
@@ -181,10 +181,10 @@
         STY $FE00       ; output 26
 ; verify X survived
         LDA #$BB
-        STA $0300
-        STX $0301
-        LDA $0301
-        CMP $0300       ; X should still be $BB
+        STA $0500
+        STX $0501
+        LDA $0501
+        CMP $0500       ; X should still be $BB
 
 ; --- Test 27: BEQ (branch if Z=1) ---
         LDA #$00        ; Z=1
@@ -254,19 +254,51 @@ COUNT   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
         LDA #$23        ; 35
         STA $FE00       ; output 35
 
+; --- Test 36: PHA / PLA ---
+        LDA #$24        ; 36
+        PHA             ; push 36
+        LDA #$00        ; clear A
+        PLA             ; pull 36 back
+        STA $FE00       ; output 36
+
+; --- Test 37: TXS / TSX ---
+        LDX #$FF
+        TXS             ; SP=$FF
+        LDX #$00        ; clear X
+        TSX             ; X should be $FF
+        LDX #$FF
+        TXS             ; restore SP=$FF
+        LDA #$25        ; 37
+        STA $FE00       ; output 37
+
+; --- Test 38: JSR / RTS ---
+        JSR SUB38       ; subroutine outputs 38
+
+; --- Test 39: PHP / PLP ---
+        SEC             ; C=1
+        PHP             ; push status
+        CLC             ; C=0
+        PLP             ; restore status (C=1)
+        LDA #$26        ; 38
+        ADC #$00        ; 38+0+1(carry)=39
+        STA $FE00       ; output 39
+
+; --- Test 40: Nested JSR ---
+        JSR SUB40       ; calls SUB40B which outputs 40
+
 ; --- Smoke tests for remaining instructions (no output, just must not crash) ---
 
 ; STX / STY absolute
         LDX #$42
-        STX $0300
+        STX $0500
         LDY #$43
-        STY $0301
+        STY $0501
 
 ; INC / DEC memory
         LDA #$09
-        STA $0300
-        INC $0300       ; mem[$0300]=10
-        DEC $0300       ; mem[$0300]=9
+        STA $0500
+        INC $0500       ; mem[$0500]=10
+        DEC $0500       ; mem[$0500]=9
 
 ; CMP immediate / absolute
         LDA #$05
@@ -274,9 +306,9 @@ COUNT   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
         CMP #$06        ; Z=0, C=0
 
         LDA #$05
-        STA $0300
+        STA $0500
         LDA #$05
-        CMP $0300       ; Z=1, C=1
+        CMP $0500       ; Z=1, C=1
 
 ; CPX immediate / absolute
         LDX #$10
@@ -284,8 +316,8 @@ COUNT   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
         CPX #$11        ; Z=0, C=0
 
         LDA #$10
-        STA $0300
-        CPX $0300       ; Z=1, C=1
+        STA $0500
+        CPX $0500       ; Z=1, C=1
 
 ; CPY immediate / absolute
         LDY #$20
@@ -293,24 +325,24 @@ COUNT   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
         CPY #$21        ; Z=0, C=0
 
         LDA #$20
-        STA $0300
-        CPY $0300       ; Z=1, C=1
+        STA $0500
+        CPY $0500       ; Z=1, C=1
 
 ; ASL / LSR / ROL / ROR absolute
         LDA #$02
-        STA $0300
-        ASL $0300       ; mem[$0300]=4
-        LSR $0300       ; mem[$0300]=2
+        STA $0500
+        ASL $0500       ; mem[$0500]=4
+        LSR $0500       ; mem[$0500]=2
         CLC
-        ROL $0300       ; mem[$0300]=4
+        ROL $0500       ; mem[$0500]=4
         CLC
-        ROR $0300       ; mem[$0300]=2
+        ROR $0500       ; mem[$0500]=2
 
 ; BIT absolute
         LDA #$FF
-        STA $0300
+        STA $0500
         LDA #$0F
-        BIT $0300       ; Z=0 (0F & FF != 0), N=1, V=1
+        BIT $0500       ; Z=0 (0F & FF != 0), N=1, V=1
 
 ; SEC / CLC
         SEC
@@ -333,6 +365,18 @@ COUNT   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
 ; JMP
         JMP HELLO
         BRK             ; should be skipped
+
+; --- Subroutine definitions ---
+SUB38   LDA #$26        ; 38
+        STA $FE00       ; output 38
+        RTS
+
+SUB40   JSR SUB40B
+        RTS
+
+SUB40B  LDA #$28        ; 40
+        STA $FE00       ; output 40
+        RTS
 
 ; --- Hello World via character I/O at $FE01 ---
 HELLO   LDA #$48        ; 'H'
