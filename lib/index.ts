@@ -12,6 +12,11 @@ const cycle = (machineState: MachineState) => {
   // eslint-disable-next-line prefer-const
   let { cpuRegisters, mainBus, systemMemory } = interfaceAllRegisters(machineState, controlWord);
 
+  if (controlWord.zn) {
+    cpuRegisters.status.Z = mainBus.data === 0;
+    cpuRegisters.status.N = (mainBus.data & 0x80) !== 0;
+  }
+
   // Real busses are cleared just by having no signals output on them
   mainBus = clearBus(mainBus, controlWord);
 
@@ -25,13 +30,18 @@ const cycle = (machineState: MachineState) => {
 
   cpuRegisters.pc = incrementProgramCounter(cpuRegisters.pc, controlWord.pce);
 
+  if (controlWord.bra) {
+    const offset = cpuRegisters.aluA > 127 ? cpuRegisters.aluA - 256 : cpuRegisters.aluA;
+    cpuRegisters.pc = (cpuRegisters.pc + offset) & 0xffff;
+  }
+
   cpuRegisters.ic = incrementInstructionCounter(cpuRegisters.ic, controlWord);
 
   const newMachineState: MachineState = { cpuRegisters, mainBus, systemMemory };
   if (!controlWord.ht) {
     setTimeout(() => cycle(newMachineState), 10);
   } else {
-    process.exit(0);
+    process.stdout.write('', () => process.exit(0));
   }
 };
 
