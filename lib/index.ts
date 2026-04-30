@@ -6,7 +6,7 @@ import { setImmediateFlags, getControlWord } from './control';
 import * as alu from './alu';
 import { MachineState, clearBus, interfaceAllRegisters } from './bus';
 
-const cycle = (machineState: MachineState) => {
+const cycle = (machineState: MachineState): MachineState => {
   const controlWord = getControlWord(machineState.cpuRegisters);
 
   // eslint-disable-next-line prefer-const
@@ -37,11 +37,17 @@ const cycle = (machineState: MachineState) => {
 
   cpuRegisters.ic = incrementInstructionCounter(cpuRegisters.ic, controlWord);
 
-  const newMachineState: MachineState = { cpuRegisters, mainBus, systemMemory };
-  if (!controlWord.ht) {
-    setTimeout(() => cycle(newMachineState), 10);
-  } else {
-    process.stdout.write('', () => process.exit(0));
+  return { cpuRegisters, mainBus, systemMemory };
+};
+
+const run = (machineState: MachineState): void => {
+  let state = machineState;
+  for (;;) {
+    const controlWord = getControlWord(state.cpuRegisters);
+    state = cycle(state);
+    if (controlWord.ht) {
+      return;
+    }
   }
 };
 
@@ -59,7 +65,7 @@ const start = () => {
   let systemMemory = setupMemory();
   systemMemory = loadBinFileToMemory(systemMemory, binFile);
 
-  cycle({ cpuRegisters, mainBus, systemMemory });
+  run({ cpuRegisters, mainBus, systemMemory });
 };
 
 export { start };

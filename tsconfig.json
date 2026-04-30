@@ -20,6 +20,7 @@
     "strict": true,
     "strictNullChecks": true,
     "target": "es2022",
+    "types": ["node"],
     "skipLibCheck": true
   },
   "exclude": ["node_modules", "dist", "coverage-output"]
