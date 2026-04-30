@@ -24,6 +24,13 @@ const instructionMap: InstructionMap = {
   LDYA: 0xac, // Load the y register with a value from absolute memory address | ABSOLUTE
   TAX: 0xaa, // Transfer the value of a register to x register | IMPLIED
   TAY: 0xa8, // Transfer the value of a register to y register | IMPLIED
+  TXA: 0x8a, // Transfer the value of x register to a register | IMPLIED
+  TYA: 0x98, // Transfer the value of y register to a register | IMPLIED
+  CLV: 0xb8, // Clear the overflow flag | IMPLIED
+  SEI: 0x78, // Set the interrupt disable flag | IMPLIED
+  CLI: 0x58, // Clear the interrupt disable flag | IMPLIED
+  SED: 0xf8, // Set the decimal mode flag | IMPLIED
+  CLD: 0xd8, // Clear the decimal mode flag | IMPLIED
   STAA: 0x8d, // Store the contents of the a register to an absolute memory address | ABSOLUTE
   STXA: 0x8e, // Store the contents of the x register to an absolute memory address | ABSOLUTE
   STYA: 0x8c, // Store the contents of the y register to an absolute memory address | ABSOLUTE
@@ -185,6 +192,27 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   },
   [instructionMap.TAY]: {
     0: [Object.assign({ ...baseControl }, { ao: true, yi: true })],
+  },
+  [instructionMap.TXA]: {
+    0: [Object.assign({ ...baseControl }, { xo: true, ai: true })],
+  },
+  [instructionMap.TYA]: {
+    0: [Object.assign({ ...baseControl }, { yo: true, ai: true })],
+  },
+  [instructionMap.CLV]: {
+    0: [Object.assign({ ...baseControl }, { if: [{ flag: 'O', value: false }] })],
+  },
+  [instructionMap.SEI]: {
+    0: [Object.assign({ ...baseControl }, { if: [{ flag: 'I', value: true }] })],
+  },
+  [instructionMap.CLI]: {
+    0: [Object.assign({ ...baseControl }, { if: [{ flag: 'I', value: false }] })],
+  },
+  [instructionMap.SED]: {
+    0: [Object.assign({ ...baseControl }, { if: [{ flag: 'D', value: true }] })],
+  },
+  [instructionMap.CLD]: {
+    0: [Object.assign({ ...baseControl }, { if: [{ flag: 'D', value: false }] })],
   },
   [instructionMap.STAA]: {
     0: [
