@@ -5,8 +5,7 @@
     "declaration": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "jsx": "react",
-    "lib": ["es2017"],
+    "lib": ["es2022"],
     "module": "commonjs",
     "moduleResolution": "node",
     "noFallthroughCasesInSwitch": true,
@@ -16,12 +15,12 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "outDir": "dist",
-    "plugins": [{ "name": "typescript-tslint-plugin" }],
     "resolveJsonModule": true,
     "sourceMap": true,
     "strict": true,
     "strictNullChecks": true,
-    "target": "es2017"
+    "target": "es2022",
+    "skipLibCheck": true
   },
   "exclude": ["node_modules", "dist", "coverage-output"]
 }

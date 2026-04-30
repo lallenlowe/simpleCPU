@@ -228,7 +228,7 @@ const getConditionalInstruction = (
   cpuRegisters: CpuRegisters,
   instructionIndex: number,
   counter: number,
-): ControlWord | boolean => {
+): ControlWord | undefined => {
   const conditionalKey = Object.keys(instructions[instructionIndex]).find((key) => {
     return cpuRegisters.status[key];
   });
@@ -237,7 +237,7 @@ const getConditionalInstruction = (
     return _.get(instructions, `${instructionIndex}.${conditionalKey}[${counter}]`);
   }
 
-  return false;
+  return undefined;
 };
 
 const getControlWord = (cpuRegisters: CpuRegisters): ControlWord => {
