@@ -13,7 +13,7 @@ const loadAssemblyFile = (path: string): string[][] => {
 };
 
 const decimalToHex = (dec: number, padding: number) => {
-  var hex = Number(dec).toString(16);
+  let hex = Number(dec).toString(16);
 
   while (hex.length < padding) {
     hex = '0' + hex;
