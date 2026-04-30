@@ -10,7 +10,7 @@ const instructionMap: InstructionMap = {
   OTA: 0x02, // Output the value of the a register | IMPLIED
   NOP: 0xea, // No Operation, | IMPLIED
   CLC: 0x18, // Clear the carry flag | IMPLIED
-  SEC: 0x26, // Set the carry flag | IMPLIED
+  SEC: 0x38, // Set the carry flag | IMPLIED
   JMP: 0x4c, // Jump to the given address | ABSOLUTE
   ADCI: 0x69, // Add with carry | IMMEDIATE
   ADCA: 0x6d, // Add with carry | ABSOLUTE

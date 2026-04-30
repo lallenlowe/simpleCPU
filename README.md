@@ -6,16 +6,39 @@
 
 This is an experiment in simulating a very simple CPU, for my own education.
 It is VERY loosely based on the classic 6502 Processor.
-It will not run 6502 code, but hopefully I can get it to run something similar someday _ahem_.
 
 ## Quickstart
 
-- [Node.js@14.x.x](https://nodejs.org/en/download/)
-- Install deps, `npm i`
-- Build `npm run build`
-- Currently using https://www.masswerk.at/6502/assembler.html to build object code, and then hand editing the test binaries with a hex editor.
-- Start program, `node dist/index.js`
-- Run tests, `npm t`
+- [Node.js >= 20](https://nodejs.org/en/download/)
+- Install deps: `npm i`
+- Build: `npm run build`
+- Assemble a program using any 6502 assembler (e.g. [masswerk](https://www.masswerk.at/6502/assembler.html), [ca65](https://cc65.github.io/doc/ca65.html), [vasm](http://sun.hasenbraten.de/vasm/))
+- Run: `node dist/index.js`
+- Lint: `npm run lint`
+
+## Supported Instructions
+
+The following 6502 instructions and addressing modes are implemented:
+
+| Mnemonic | Immediate | Absolute | Implied |
+|----------|-----------|----------|---------|
+| LDA      | A9        | AD       |         |
+| LDX      | A2        | AE       |         |
+| LDY      | A0        | AC       |         |
+| STA      |           | 8D       |         |
+| STX      |           | 8E       |         |
+| STY      |           | 8C       |         |
+| ADC      | 69        | 6D       |         |
+| CMP      | C9        | CD       |         |
+| JMP      |           | 4C       |         |
+| TAX      |           |          | AA      |
+| TAY      |           |          | A8      |
+| CLC      |           |          | 18      |
+| SEC      |           |          | 38      |
+| NOP      |           |          | EA      |
+| BRK      |           |          | 00      |
+
+Additionally, opcode `0x02` outputs the A register value (not a real 6502 instruction).
 
 ## What this project is NOT
 
@@ -33,4 +56,4 @@ It will not run 6502 code, but hopefully I can get it to run something similar s
 1. ✔ Learn more about how CPUs work
 2. ✔ Practice thinking in functional
 3. ✔ Practicing Typescript
-4. (secret 4th goal) Run 6502 binary, or at least a subset
+4. ✔ Run 6502 binary (subset)
