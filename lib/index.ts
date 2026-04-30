@@ -38,10 +38,16 @@ const cycle = (machineState: MachineState) => {
 /* ##################################################################### */
 
 const start = () => {
+  const binFile = process.argv[2];
+  if (!binFile) {
+    console.error('Usage: simplecpu <file.bin>');
+    process.exit(1);
+  }
+
   const cpuRegisters = setupCpuRegisters();
   const mainBus = setupBus();
   let systemMemory = setupMemory();
-  systemMemory = loadBinFileToMemory(systemMemory, './add1.bin');
+  systemMemory = loadBinFileToMemory(systemMemory, binFile);
 
   cycle({ cpuRegisters, mainBus, systemMemory });
 };
