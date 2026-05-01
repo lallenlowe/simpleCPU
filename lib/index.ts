@@ -52,7 +52,7 @@ const cycle = (machineState: MachineState): MachineState => {
   }
 
   // Real busses are cleared just by having no signals output on them
-  mainBus = clearBus(mainBus, controlWord);
+  mainBus = clearBus(mainBus);
 
   cpuRegisters = setImmediateFlags({ controlWord, cpuRegisters });
 

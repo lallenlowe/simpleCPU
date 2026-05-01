@@ -1,7 +1,7 @@
 ; simpleCPU test suite
 ; Exercises every implemented instruction
 ; Output to $FE00 — each STA $FE00 prints a test result
-; Expected output: 1 through 34, then 3 2 1 35, 36-58, then Hello World!
+; Expected output: 1 through 34, then 3 2 1 35, 36-63, then Hello World!
 
 * = $0200
 
@@ -428,6 +428,63 @@ T47OK   LDA #$2F        ; 47
         LDA #$00
         LDA $05FF,Y     ; load from $0601
         STA $FE00       ; output 58
+
+; --- Test 59: JMP indirect ---
+        LDA #<T59TGT    ; low byte of target address
+        STA $60         ; store at ZP $60
+        LDA #>T59TGT    ; high byte of target address
+        STA $61         ; store at ZP $61
+        JMP ($0060)     ; jump through pointer at $0060
+        BRK             ; trap — should be skipped
+T59TGT  LDA #$3B        ; 59
+        STA $FE00       ; output 59
+
+; --- Test 60: LDA (zp,X) indexed indirect ---
+        LDA #<T60DAT    ; low byte of data address
+        LDX #$04
+        STA $70,X       ; store pointer low at ZP[$74]
+        LDA #>T60DAT    ; high byte of data address
+        STA $75         ; store pointer high at ZP[$75]
+        LDA #$00        ; clear A
+        LDA ($70,X)     ; read through pointer at ZP[$74]
+        STA $FE00       ; output 60
+        JMP T60END
+T60DAT  .BYTE $3C       ; 60
+T60END
+
+; --- Test 61: STA (zp,X) indexed indirect ---
+        LDA #<$0600     ; low byte of $0600
+        STA $76         ; pointer low at ZP[$76]
+        LDA #>$0600     ; high byte of $0600
+        STA $77         ; pointer high at ZP[$77]
+        LDA #$3D        ; 61
+        LDX #$06
+        STA ($70,X)     ; store through pointer at ZP[$76] → $0600
+        LDA $0600       ; verify
+        STA $FE00       ; output 61
+
+; --- Test 62: LDA (zp),Y indirect indexed ---
+        LDA #<T62DAT    ; low byte of data base
+        STA $80         ; pointer low at ZP[$80]
+        LDA #>T62DAT    ; high byte of data base
+        STA $81         ; pointer high at ZP[$81]
+        LDY #$03        ; offset
+        LDA ($80),Y     ; read from T62DAT+3
+        STA $FE00       ; output 62
+        JMP T62END
+T62DAT  .BYTE $00,$00,$00,$3E  ; data[3] = 62
+T62END
+
+; --- Test 63: STA (zp),Y indirect indexed ---
+        LDA #<$0600     ; pointer to $0600
+        STA $82
+        LDA #>$0600
+        STA $83
+        LDA #$3F        ; 63
+        LDY #$05
+        STA ($82),Y     ; store at $0600+5=$0605
+        LDA $0605       ; verify
+        STA $FE00       ; output 63
 
 ; --- Smoke tests for remaining instructions (no output, just must not crash) ---
 
