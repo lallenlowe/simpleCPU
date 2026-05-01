@@ -44,10 +44,14 @@ You can also pipe a `.bas` text file in as keyboard input — the simulator tran
 cat tic-tac-toe.bas | node dist/index.js programs/a1basic.bin --org E000
 ```
 
-A sample BASIC game is included at `programs/lander.bas` — a Lunar Lander clone in pure integer arithmetic:
+Sample BASIC games are included:
+
+- `programs/lander.bas` — Lunar Lander, pure integer arithmetic
+- `programs/tictac.bas` — two-player tic-tac-toe
 
 ```sh
 cat programs/lander.bas | node dist/index.js programs/a1basic.bin --org E000
+cat programs/tictac.bas | node dist/index.js programs/a1basic.bin --org E000
 ```
 
 ## Supported Instructions
