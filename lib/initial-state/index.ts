@@ -86,14 +86,14 @@ const setupMemory = (): Memory => {
   return mem;
 };
 
-const LOAD_ADDRESS = 0x0200;
+const DEFAULT_LOAD_ADDRESS = 0x0200;
 
-const loadBinFileToMemory = (memory: Memory, fileName: string): Memory => {
+const loadBinFileToMemory = (memory: Memory, fileName: string, loadAddress: number = DEFAULT_LOAD_ADDRESS): Memory => {
   const newMemory = { ...memory };
   const file = fs.readFileSync(fileName, { encoding: 'hex' });
   const chunks = file.match(/.{2}/g) || [];
   chunks.forEach((chunk, index) => {
-    newMemory.data[LOAD_ADDRESS + index] = parseInt(chunk, 16);
+    newMemory.data[loadAddress + index] = parseInt(chunk, 16);
   });
 
   return newMemory;
@@ -104,7 +104,7 @@ export {
   Bus,
   CpuRegisters,
   Memory,
-  LOAD_ADDRESS,
+  DEFAULT_LOAD_ADDRESS,
   setupBus,
   setupCpuRegisters,
   setupMemory,

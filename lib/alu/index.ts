@@ -26,6 +26,7 @@ const operate = ({
   newRegisters = shiftRight(newRegisters, controlWord);
   newRegisters = rotateLeft(newRegisters, controlWord);
   newRegisters = rotateRight(newRegisters, controlWord);
+  newRegisters = decrement(newRegisters, controlWord);
   newRegisters = bitTest(newRegisters, controlWord);
   newRegisters = compare(newRegisters, controlWord);
 
@@ -187,6 +188,20 @@ const rotateRight = (registers: CpuRegisters, controlWord: ControlWord): CpuRegi
     newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'N', value: result[0] });
     newRegisters.s = byteToNumber(result);
 
+    return newRegisters;
+  }
+  return registers;
+};
+
+const decrement = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+  if (controlWord.dDec) {
+    const newRegisters: CpuRegisters = { ...registers };
+    const { sum } = byteAdder(
+      numberToByte(newRegisters.aluA),
+      byteNot(numberToByte(newRegisters.aluB)),
+      true,
+    );
+    newRegisters.s = byteToNumber(sum);
     return newRegisters;
   }
   return registers;

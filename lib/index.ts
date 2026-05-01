@@ -1,6 +1,6 @@
 'use strict';
 
-import { setupBus, setupCpuRegisters, setupMemory, loadBinFileToMemory, LOAD_ADDRESS } from './initial-state';
+import { setupBus, setupCpuRegisters, setupMemory, loadBinFileToMemory, DEFAULT_LOAD_ADDRESS } from './initial-state';
 import { instructionMap } from './control';
 import { incrementProgramCounter, incrementInstructionCounter } from './register';
 import { setImmediateFlags, getControlWord } from './control';
@@ -98,19 +98,32 @@ const run = (machineState: MachineState): void => {
 
 /* ##################################################################### */
 
+const parseOrg = (args: string[]): number => {
+  const orgIndex = args.indexOf('--org');
+  if (orgIndex === -1 || orgIndex + 1 >= args.length) return DEFAULT_LOAD_ADDRESS;
+  return parseInt(args[orgIndex + 1], 16);
+};
+
 const start = () => {
   debugMode = process.argv.includes('--debug');
-  const binFile = process.argv.find((arg) => arg !== '--debug' && !arg.includes('node') && !arg.includes('index.js'));
+  const skipArgs = new Set(['--debug', '--org']);
+  let skipNext = false;
+  const binFile = process.argv.slice(2).find((arg) => {
+    if (skipNext) { skipNext = false; return false; }
+    if (arg === '--org') { skipNext = true; return false; }
+    return !skipArgs.has(arg);
+  });
   if (!binFile) {
-    console.error('Usage: simplecpu <file.bin> [--debug]');
+    console.error('Usage: simplecpu <file.bin> [--org XXXX] [--debug]');
     process.exit(1);
   }
 
+  const loadAddress = parseOrg(process.argv);
   const cpuRegisters = setupCpuRegisters();
-  cpuRegisters.pc = LOAD_ADDRESS;
+  cpuRegisters.pc = loadAddress;
   const mainBus = setupBus();
   let systemMemory = setupMemory();
-  systemMemory = loadBinFileToMemory(systemMemory, binFile);
+  systemMemory = loadBinFileToMemory(systemMemory, binFile, loadAddress);
   const inputDevice = createInputDevice();
   setupStdin(inputDevice);
 
