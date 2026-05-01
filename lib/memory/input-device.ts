@@ -12,14 +12,17 @@ const createInputDevice = (): InputDevice => {
 };
 
 const setupStdin = (device: InputDevice): void => {
-  if (!process.stdin.isTTY) return;
-  process.stdin.setRawMode(true);
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+  }
   device.active = true;
 };
 
 const teardownStdin = (device: InputDevice): void => {
   if (!device.active) return;
-  process.stdin.setRawMode(false);
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(false);
+  }
   device.active = false;
 };
 
