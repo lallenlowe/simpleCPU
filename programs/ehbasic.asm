@@ -688,6 +688,8 @@ LAB_120A
 ; stack too deep? do OM error
 
 LAB_1212
+	CLC				; prep ADC
+	ADC	#$10			; stack pointer lower limit + 16 bytes floor
 	STA	TempB			; save result in temp byte
 	TSX				; copy stack
 	CPX	TempB			; compare new "limit" with stack
@@ -2001,14 +2003,9 @@ LAB_174C
 
 					; is var or keyword
 LAB_174D
-	CMP	#TK_RETURN		; compare the byte with the token for RETURN
-	BNE	LAB_174G		; if it wasn't RETURN go interpret BASIC code from (Bpntrl)
-					; and return to this code to process any following code
-
-	JMP	LAB_1602		; else it was RETURN so interpret BASIC code from (Bpntrl)
-					; but don't return here
-
-LAB_174G
+	PLA				; discard interpreter loop return address
+	PLA				; so data structures are at the correct stack offset
+	JSR	LAB_GBYT		; restore token or variable
 	JSR	LAB_15FF		; interpret BASIC code from (Bpntrl)
 
 ; the IF was executed and there may be a following ELSE so the code needs to return
@@ -2017,12 +2014,14 @@ LAB_174G
 	LDY	#$00			; clear the index
 	LDA	(Bpntrl),Y		; get the next BASIC byte
 	CMP	#TK_ELSE		; compare it with the token for ELSE
-	BEQ	LAB_DATA		; if ELSE ignore the following statement
+	BNE	LAB_no_ELSE		; no - continue on this line
+	JSR	LAB_DATA		; yes - skip the rest of the line
 
 ; there was no ELSE so continue execution of IF <expr> THEN <stat> [: <stat>]. any
 ; following ELSE will, correctly, cause a syntax error
 
-	RTS				; else return to the interpreter inner loop
+LAB_no_ELSE
+	JMP	LAB_15C2		; return to the interpreter inner loop
 
 ; perform ELSE after IF
 
@@ -2219,8 +2218,8 @@ LAB_LET
 	JSR	LAB_EVEX		; evaluate expression
 	PLA				; pop data type flag
 	ROL				; set carry if type = string
-	JSR	LAB_CKTM		; type match check, set C for string
-	BNE	LAB_17D5		; branch if string
+	JSR	LAB_CKTM		; type match check, keep C (expected type)
+	BCS	LAB_17D5		; branch if string
 
 	JMP	LAB_PFAC		; pack FAC1 into variable (Lvarpl) and return
 
@@ -3238,6 +3237,7 @@ LAB_1C24
 	JMP	LAB_UFAC		; unpack memory (AY) into FAC1
 
 LAB_1C25
+	LSR	FAC1_r			; clear bit 7 = do not round up
 	RTS
 
 ; get value from line .. continued
@@ -4393,8 +4393,10 @@ LAB_20D0
 LAB_20DC
 	STX	Sendh			; save string end high byte
 	LDA	ssptr_h		; get string start high byte
-	CMP	#>Ram_base		; compare with start of program memory
-	BCS	LAB_RTST		; branch if not in utility area
+	BEQ	LAB_MVST		; fix STR$() using page zero via LAB_296E
+	CMP	#>Ibuffs		; compare with location of input buffer page
+	BNE	LAB_RTST		; branch if not in utility area
+LAB_MVST
 
 					; string in utility area, move to string memory
 	TYA				; copy length to A
