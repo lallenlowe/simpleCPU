@@ -109,4 +109,11 @@ PC=$0202 STAA  A=$01 X=$00 Y=$00 SP=$ff [nobdizc]
 - [ ] Load multiple binaries at independent addresses (e.g. `--load wozmon.bin@FF00 --load a1basic.bin@E000`)
   - Enables coexisting wozmon + BASIC like the real Apple 1
   - Reset signal (key combo or `JMP ($FFFC)`) jumps to wozmon, `E2B3R` warm-starts BASIC with program intact
-  - Unlocks save/restore of BASIC programs via wozmon's memory dump
+- [ ] Snapshot / restore (host-level, invisible to guest)
+  - Hotkey to dump full 64KB + CPU registers to a file, hotkey to restore
+  - `--snapshot file.bin` to boot from a snapshot, `--auto-snapshot` for periodic checkpoints
+  - Useful for debugging, time-travel, reproducible bug reports
+- [ ] Tape I/O via memory-mapped ports (authentic, guest-driven)
+  - MMIO data + control ports that stream bytes to/from a host file
+  - Lets BASIC programs be saved/restored from inside wozmon, or via a small assembly routine
+  - Pairs nicely with snapshots: checkpoint before a save, verify roundtrip
