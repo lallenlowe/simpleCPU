@@ -161,6 +161,10 @@ const interfaceAllRegisters = (
     mainBus = { ...mainBus, addressRegister: (mainBus.addressRegister + 1) & 0xffff };
   }
 
+  if (controlWord.irqvec) {
+    mainBus = { ...mainBus, addressRegister: 0xFFFE };
+  }
+
   return { cpuRegisters, mainBus, systemMemory, inputDevice: machineState.inputDevice };
 };
 
