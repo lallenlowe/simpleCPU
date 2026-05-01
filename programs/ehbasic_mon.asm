@@ -32,6 +32,16 @@ LAB_stlp
 	DEY			; decrement index/count
 	BNE	LAB_stlp	; loop if more to do
 
+; seed the PRNG - all-zero LFSR stays zero forever with RND(0)
+	LDA	#$A5
+	STA	Rbyte1
+	LDA	#$69
+	STA	Rbyte2
+	LDA	#$3C
+	STA	Rbyte3
+	LDA	#$17
+	STA	Rbyte4
+
 ; now do the signon message, Y = $00 here
 
 LAB_signon
