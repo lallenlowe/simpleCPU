@@ -155,9 +155,11 @@ PRHEX:          AND #$0F        ; Mask LSD for hex print.
                 CMP #$BA        ; Digit?
                 BCC ECHO        ; Yes, output it.
                 ADC #$06        ; Add offset for letter.
-ECHO:           AND #$7F        ; Strip high bit for output.
+ECHO:           PHA             ; Save original A.
+                AND #$7F        ; Strip high bit for output.
                 CMP #$0D        ; CR?
                 BNE ECHOOUT     ; No, just output.
                 LDA #$0A        ; Convert CR to LF for terminal.
 ECHOOUT:        STA IOWRITE     ; Output character.
+                PLA             ; Restore original A.
                 RTS             ; Return.
