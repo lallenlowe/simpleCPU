@@ -18,30 +18,30 @@ It is VERY loosely based on the classic 6502 Processor.
 
 ## Assembling and running
 
-Any 6502 assembler works. The included programs (`test.s`, `wozmon.s`, `a1basic.s`) use [cc65](https://cc65.github.io/) syntax. Install with `brew install cc65` on macOS.
+Any 6502 assembler works. The included programs in `programs/` use [cc65](https://cc65.github.io/) syntax. Install with `brew install cc65` on macOS.
 
 Assemble to a flat binary with `cl65 -t none -o program.bin program.s`. The source file's `.org` directive sets the load address — pass the matching `--org` flag when running.
 
 ```sh
 # Test program (loads at $0200, the default)
-cl65 -t none -o test.bin test.s
-node dist/index.js test.bin
+cl65 -t none -o programs/test.bin programs/test.s
+node dist/index.js programs/test.bin
 
 # Woz Monitor (loads at $FF00)
-cl65 -t none -o wozmon.bin wozmon.s
-node dist/index.js wozmon.bin --org FF00
+cl65 -t none -o programs/wozmon.bin programs/wozmon.s
+node dist/index.js programs/wozmon.bin --org FF00
 
 # Apple 1 Integer BASIC (loads at $E000)
-cl65 -t none -o a1basic.bin a1basic.s
-node dist/index.js a1basic.bin --org E000
+cl65 -t none -o programs/a1basic.bin programs/a1basic.s
+node dist/index.js programs/a1basic.bin --org E000
 ```
 
 For Apple 1 BASIC, type things like `PRINT 6*7`, `10 PRINT "HI"`, `LIST`, `RUN`. Press Ctrl+C to exit.
 
-You can also pipe a `.bas` text file in as keyboard input — the simulator translates LF to CR so unix line endings work:
+You can also pipe a `.bas` text file in as keyboard input — the simulator translates LF to CR so unix line endings work, and re-opens `/dev/tty` after EOF so you can keep typing:
 
 ```sh
-cat tic-tac-toe.bas | node dist/index.js a1basic.bin --org E000
+cat tic-tac-toe.bas | node dist/index.js programs/a1basic.bin --org E000
 ```
 
 ## Supported Instructions
