@@ -22,6 +22,7 @@ type CpuRegisters = {
   pc: number; // 16 bit program counter
   sp: number; // 8 bit stack pointer
   o: number; // 8 bit output register
+  addressCarry: boolean; // internal carry latch for address arithmetic
   status: {
     [C: string]: boolean; // Carry
     Z: boolean; // Zero
@@ -59,6 +60,7 @@ const setupCpuRegisters = (): CpuRegisters => {
     pc: 0b0000000000000000,
     sp: 0xff,
     o: 0b00000000,
+    addressCarry: false,
     status: {
       C: false,
       Z: false,

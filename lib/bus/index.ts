@@ -60,12 +60,9 @@ const busRegisterToAddress = (bus: Bus, enable: boolean): Bus => {
   return bus;
 };
 
-const clearBus = (bus: Bus, controlWord: ControlWord) => {
+const clearBus = (bus: Bus) => {
   const newBus = setupBus();
-  if (!controlWord.bac) {
-    newBus.addressRegister = bus.addressRegister;
-  }
-
+  newBus.addressRegister = bus.addressRegister;
   return newBus;
 };
 
@@ -149,8 +146,20 @@ const interfaceAllRegisters = (
     inputDevice: machineState.inputDevice,
   }));
 
+  if (controlWord.bac) {
+    mainBus = { ...mainBus, addressRegister: 0 };
+  }
+
   mainBus = dataToAddressLow(mainBus, controlWord.dal);
   mainBus = dataToAddressHigh(mainBus, controlWord.dah);
+
+  if (controlWord.dahc && cpuRegisters.addressCarry) {
+    mainBus = { ...mainBus, addressRegister: (mainBus.addressRegister + 0x100) & 0xffff };
+  }
+
+  if (controlWord.bai) {
+    mainBus = { ...mainBus, addressRegister: (mainBus.addressRegister + 1) & 0xffff };
+  }
 
   return { cpuRegisters, mainBus, systemMemory, inputDevice: machineState.inputDevice };
 };
