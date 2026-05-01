@@ -38,6 +38,12 @@ node dist/index.js a1basic.bin --org E000
 
 For Apple 1 BASIC, type things like `PRINT 6*7`, `10 PRINT "HI"`, `LIST`, `RUN`. Press Ctrl+C to exit.
 
+You can also pipe a `.bas` text file in as keyboard input — the simulator translates LF to CR so unix line endings work:
+
+```sh
+cat tic-tac-toe.bas | node dist/index.js a1basic.bin --org E000
+```
+
 ## Supported Instructions
 
 All 55 official 6502 instructions are implemented across all addressing modes (151 opcodes), except RTI.
@@ -106,9 +112,10 @@ PC=$0202 STAA  A=$01 X=$00 Y=$00 SP=$ff [nobdizc]
   - BRK should push PC+2 and status to stack, load PC from vector at $FFFE/$FFFF
   - RTI pops status then PC from stack
   - Hardware interrupt lines (IRQ respects I flag, NMI is non-maskable)
-- [ ] Load multiple binaries at independent addresses (e.g. `--load wozmon.bin@FF00 --load a1basic.bin@E000`)
+- [ ] Load multiple binaries at independent addresses (e.g. `--load wozmon.bin@FF00 --load demo.bin@0280 --start 0280`)
   - Enables coexisting wozmon + BASIC like the real Apple 1
   - Reset signal (key combo or `JMP ($FFFC)`) jumps to wozmon, `E2B3R` warm-starts BASIC with program intact
+  - Unlocks running preserved Apple 1 binaries (demos, games, monitors) at their native load addresses
 - [ ] Snapshot / restore (host-level, invisible to guest)
   - Hotkey to dump full 64KB + CPU registers to a file, hotkey to restore
   - `--snapshot file.bin` to boot from a snapshot, `--auto-snapshot` for periodic checkpoints
@@ -117,3 +124,4 @@ PC=$0202 STAA  A=$01 X=$00 Y=$00 SP=$ff [nobdizc]
   - MMIO data + control ports that stream bytes to/from a host file
   - Lets BASIC programs be saved/restored from inside wozmon, or via a small assembly routine
   - Pairs nicely with snapshots: checkpoint before a save, verify roundtrip
+  - Authentic flavor for software preservation — load original Apple 1 cassette images

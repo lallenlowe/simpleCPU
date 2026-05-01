@@ -36,7 +36,8 @@ const pollStdin = (device: InputDevice): void => {
         teardownStdin(device);
         process.exit();
       }
-      device.buffer.push(buf[i]);
+      const byte = buf[i] === 0x0a ? 0x0d : buf[i];
+      device.buffer.push(byte);
     }
   } catch {
     // EAGAIN — no data available, which is expected
