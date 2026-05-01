@@ -44,6 +44,12 @@ You can also pipe a `.bas` text file in as keyboard input — the simulator tran
 cat tic-tac-toe.bas | node dist/index.js programs/a1basic.bin --org E000
 ```
 
+A sample BASIC game is included at `programs/lander.bas` — a Lunar Lander clone in pure integer arithmetic:
+
+```sh
+cat programs/lander.bas | node dist/index.js programs/a1basic.bin --org E000
+```
+
 ## Supported Instructions
 
 All 55 official 6502 instructions are implemented across all addressing modes (151 opcodes), except RTI.
