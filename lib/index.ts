@@ -80,10 +80,16 @@ const cycle = (machineState: MachineState): MachineState => {
 
 const run = (machineState: MachineState): void => {
   let state = machineState;
+  let cycles = 0;
+  const startTime = process.hrtime.bigint();
   for (;;) {
     const controlWord = getControlWord(state.cpuRegisters);
     state = cycle(state);
+    cycles++;
     if (controlWord.ht) {
+      const elapsed = Number(process.hrtime.bigint() - startTime) / 1e9;
+      const mhz = (cycles / elapsed) / 1e6;
+      process.stderr.write(`\n${cycles} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
       teardownStdin(state.inputDevice);
       return;
     }
