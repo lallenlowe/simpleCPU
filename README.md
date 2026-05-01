@@ -106,3 +106,7 @@ PC=$0202 STAA  A=$01 X=$00 Y=$00 SP=$ff [nobdizc]
   - BRK should push PC+2 and status to stack, load PC from vector at $FFFE/$FFFF
   - RTI pops status then PC from stack
   - Hardware interrupt lines (IRQ respects I flag, NMI is non-maskable)
+- [ ] Load multiple binaries at independent addresses (e.g. `--load wozmon.bin@FF00 --load a1basic.bin@E000`)
+  - Enables coexisting wozmon + BASIC like the real Apple 1
+  - Reset signal (key combo or `JMP ($FFFC)`) jumps to wozmon, `E2B3R` warm-starts BASIC with program intact
+  - Unlocks save/restore of BASIC programs via wozmon's memory dump
