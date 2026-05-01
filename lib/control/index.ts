@@ -219,6 +219,7 @@ type ControlWord = {
   sto: boolean; // output status register as byte to data bus
   sti: boolean; // input status register from data bus byte
   dEa: boolean; // address add: aluA + aluB with carry=0, no flag updates
+  dDec: boolean; // decrement: aluA + ~aluB + 1, no flag updates
   dahc: boolean; // add address carry to high byte of bus address register
   bai: boolean; // increment bus address register by 1
   if: { flag: string; value: boolean }[]; // Cpu status flags to set immediately
@@ -278,6 +279,7 @@ const baseControl: ControlWord = {
   sto: false, // output status register as byte to data bus
   sti: false, // input status register from data bus byte
   dEa: false, // address add: aluA + aluB with carry=0, no flag updates
+  dDec: false, // decrement: aluA + ~aluB + 1, no flag updates
   dahc: false, // add address carry to high byte of bus address register
   bai: false, // increment bus address register by 1
   if: [], // Cpu status flags to set immediately
@@ -557,8 +559,8 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   // INC - increment
   [instructionMap.INCA]: {
     0: [
-      Object.assign({ ...baseControl }, { ao: true, la: true, c1: true, dE: true, fi: true, if: [{ flag: 'C', value: false }] }),
-      Object.assign({ ...baseControl }, { so: true, ai: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, c1: true, dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true, zn: true }),
     ],
   },
   [instructionMap.INCM]: {
@@ -566,15 +568,15 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
       Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
-      Object.assign({ ...baseControl }, { c1: true, dE: true, fi: true, if: [{ flag: 'C', value: false }] }),
-      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+      Object.assign({ ...baseControl }, { c1: true, dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true, zn: true }),
     ],
   },
   // DEC - decrement
   [instructionMap.DECA]: {
     0: [
-      Object.assign({ ...baseControl }, { ao: true, la: true, c1: true, dS: true, fi: true, if: [{ flag: 'C', value: true }] }),
-      Object.assign({ ...baseControl }, { so: true, ai: true }),
+      Object.assign({ ...baseControl }, { ao: true, la: true, c1: true, dDec: true }),
+      Object.assign({ ...baseControl }, { so: true, ai: true, zn: true }),
     ],
   },
   [instructionMap.DECM]: {
@@ -582,33 +584,33 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
       Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
-      Object.assign({ ...baseControl }, { c1: true, dS: true, fi: true, if: [{ flag: 'C', value: true }] }),
-      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+      Object.assign({ ...baseControl }, { c1: true, dDec: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true, zn: true }),
     ],
   },
   // INX/DEX/INY/DEY - increment/decrement registers
   [instructionMap.INX]: {
     0: [
-      Object.assign({ ...baseControl }, { xo: true, la: true, c1: true, dE: true, fi: true, if: [{ flag: 'C', value: false }] }),
-      Object.assign({ ...baseControl }, { so: true, xi: true }),
+      Object.assign({ ...baseControl }, { xo: true, la: true, c1: true, dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, xi: true, zn: true }),
     ],
   },
   [instructionMap.DEX]: {
     0: [
-      Object.assign({ ...baseControl }, { xo: true, la: true, c1: true, dS: true, fi: true, if: [{ flag: 'C', value: true }] }),
-      Object.assign({ ...baseControl }, { so: true, xi: true }),
+      Object.assign({ ...baseControl }, { xo: true, la: true, c1: true, dDec: true }),
+      Object.assign({ ...baseControl }, { so: true, xi: true, zn: true }),
     ],
   },
   [instructionMap.INY]: {
     0: [
-      Object.assign({ ...baseControl }, { yo: true, la: true, c1: true, dE: true, fi: true, if: [{ flag: 'C', value: false }] }),
-      Object.assign({ ...baseControl }, { so: true, yi: true }),
+      Object.assign({ ...baseControl }, { yo: true, la: true, c1: true, dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, yi: true, zn: true }),
     ],
   },
   [instructionMap.DEY]: {
     0: [
-      Object.assign({ ...baseControl }, { yo: true, la: true, c1: true, dS: true, fi: true, if: [{ flag: 'C', value: true }] }),
-      Object.assign({ ...baseControl }, { so: true, yi: true }),
+      Object.assign({ ...baseControl }, { yo: true, la: true, c1: true, dDec: true }),
+      Object.assign({ ...baseControl }, { so: true, yi: true, zn: true }),
     ],
   },
   // CPX - compare x register
@@ -817,16 +819,16 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
-      Object.assign({ ...baseControl }, { c1: true, dE: true, fi: true, if: [{ flag: 'C', value: false }] }),
-      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+      Object.assign({ ...baseControl }, { c1: true, dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true, zn: true }),
     ],
   },
   [instructionMap.DECZ]: {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
       Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
-      Object.assign({ ...baseControl }, { c1: true, dS: true, fi: true, if: [{ flag: 'C', value: true }] }),
-      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+      Object.assign({ ...baseControl }, { c1: true, dDec: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true, zn: true }),
     ],
   },
   // Zero page,X indexed — base + X through ALU with carry=0
@@ -982,8 +984,8 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
       Object.assign({ ...baseControl }, { dEa: true }),
       Object.assign({ ...baseControl }, { so: true, dal: true }),
       Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
-      Object.assign({ ...baseControl }, { c1: true, dE: true, fi: true, if: [{ flag: 'C', value: false }] }),
-      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+      Object.assign({ ...baseControl }, { c1: true, dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true, zn: true }),
     ],
   },
   [instructionMap.DECZX]: {
@@ -993,8 +995,8 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
       Object.assign({ ...baseControl }, { dEa: true }),
       Object.assign({ ...baseControl }, { so: true, dal: true }),
       Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
-      Object.assign({ ...baseControl }, { c1: true, dS: true, fi: true, if: [{ flag: 'C', value: true }] }),
-      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+      Object.assign({ ...baseControl }, { c1: true, dDec: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true, zn: true }),
     ],
   },
   // Zero page,Y indexed
@@ -1174,8 +1176,8 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
       Object.assign({ ...baseControl }, { dEa: true }),
       Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
       Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
-      Object.assign({ ...baseControl }, { c1: true, dE: true, fi: true, if: [{ flag: 'C', value: false }] }),
-      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+      Object.assign({ ...baseControl }, { c1: true, dEa: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true, zn: true }),
     ],
   },
   [instructionMap.DECAX]: {
@@ -1186,8 +1188,8 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
       Object.assign({ ...baseControl }, { dEa: true }),
       Object.assign({ ...baseControl }, { so: true, dal: true, dahc: true }),
       Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true }),
-      Object.assign({ ...baseControl }, { c1: true, dS: true, fi: true, if: [{ flag: 'C', value: true }] }),
-      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true }),
+      Object.assign({ ...baseControl }, { c1: true, dDec: true }),
+      Object.assign({ ...baseControl }, { so: true, ri: true, bac: true, zn: true }),
     ],
   },
   // Absolute,Y indexed

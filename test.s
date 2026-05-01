@@ -3,7 +3,7 @@
 ; Output to $FE00 — each STA $FE00 prints a test result
 ; Expected output: 1 through 34, then 3 2 1 35, 36-63, then Hello World!
 
-* = $0200
+.org $0200
 
 ; --- Test 1: LDA immediate ---
         LDA #$01        ; A=1
@@ -190,42 +190,42 @@
         LDA #$00        ; Z=1
         BEQ T27OK
         BRK             ; trap
-T27OK   LDA #$1B        ; 27
+T27OK:   LDA #$1B        ; 27
         STA $FE00       ; output 27
 
 ; --- Test 28: BNE (branch if Z=0) ---
         LDA #$01        ; Z=0
         BNE T28OK
         BRK             ; trap
-T28OK   LDA #$1C        ; 28
+T28OK:   LDA #$1C        ; 28
         STA $FE00       ; output 28
 
 ; --- Test 29: BCS (branch if C=1) ---
         SEC
         BCS T29OK
         BRK             ; trap
-T29OK   LDA #$1D        ; 29
+T29OK:   LDA #$1D        ; 29
         STA $FE00       ; output 29
 
 ; --- Test 30: BCC (branch if C=0) ---
         CLC
         BCC T30OK
         BRK             ; trap
-T30OK   LDA #$1E        ; 30
+T30OK:   LDA #$1E        ; 30
         STA $FE00       ; output 30
 
 ; --- Test 31: BMI (branch if N=1) ---
         LDA #$80        ; N=1
         BMI T31OK
         BRK             ; trap
-T31OK   LDA #$1F        ; 31
+T31OK:   LDA #$1F        ; 31
         STA $FE00       ; output 31
 
 ; --- Test 32: BPL (branch if N=0) ---
         LDA #$01        ; N=0
         BPL T32OK
         BRK             ; trap
-T32OK   LDA #$20        ; 32
+T32OK:   LDA #$20        ; 32
         STA $FE00       ; output 32
 
 ; --- Test 33: BVS (branch if V=1) ---
@@ -234,19 +234,19 @@ T32OK   LDA #$20        ; 32
         ADC #$40        ; 64+64=128, overflow
         BVS T33OK
         BRK             ; trap
-T33OK   LDA #$21        ; 33
+T33OK:   LDA #$21        ; 33
         STA $FE00       ; output 33
 
 ; --- Test 34: BVC (branch if V=0) ---
         CLV
         BVC T34OK
         BRK             ; trap
-T34OK   LDA #$22        ; 34
+T34OK:   LDA #$22        ; 34
         STA $FE00       ; output 34
 
 ; --- Test 35: BNE backward branch (countdown) ---
         LDX #$03
-COUNT   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
+COUNT:   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
         DEX
         BNE COUNT
 ; After loop: X=0, output was 3, 2, 1
@@ -337,7 +337,7 @@ COUNT   STX $FE00       ; output 35, 36, 37 (values 3, 2, 1)
         CMP $40         ; Z=1 (equal)
         BEQ T47OK
         BRK
-T47OK   LDA #$2F        ; 47
+T47OK:   LDA #$2F        ; 47
         STA $FE00       ; output 47
 
 ; --- Test 48: INC/DEC zero page ---
@@ -436,7 +436,7 @@ T47OK   LDA #$2F        ; 47
         STA $61         ; store at ZP $61
         JMP ($0060)     ; jump through pointer at $0060
         BRK             ; trap — should be skipped
-T59TGT  LDA #$3B        ; 59
+T59TGT:  LDA #$3B        ; 59
         STA $FE00       ; output 59
 
 ; --- Test 60: LDA (zp,X) indexed indirect ---
@@ -449,8 +449,8 @@ T59TGT  LDA #$3B        ; 59
         LDA ($70,X)     ; read through pointer at ZP[$74]
         STA $FE00       ; output 60
         JMP T60END
-T60DAT  .BYTE $3C       ; 60
-T60END
+T60DAT:  .BYTE $3C       ; 60
+T60END:
 
 ; --- Test 61: STA (zp,X) indexed indirect ---
         LDA #<$0600     ; low byte of $0600
@@ -472,8 +472,8 @@ T60END
         LDA ($80),Y     ; read from T62DAT+3
         STA $FE00       ; output 62
         JMP T62END
-T62DAT  .BYTE $00,$00,$00,$3E  ; data[3] = 62
-T62END
+T62DAT:  .BYTE $00,$00,$00,$3E  ; data[3] = 62
+T62END:
 
 ; --- Test 63: STA (zp),Y indirect indexed ---
         LDA #<$0600     ; pointer to $0600
@@ -567,19 +567,19 @@ T62END
         BRK             ; should be skipped
 
 ; --- Subroutine definitions ---
-SUB38   LDA #$26        ; 38
+SUB38:   LDA #$26        ; 38
         STA $FE00       ; output 38
         RTS
 
-SUB40   JSR SUB40B
+SUB40:   JSR SUB40B
         RTS
 
-SUB40B  LDA #$28        ; 40
+SUB40B:  LDA #$28        ; 40
         STA $FE00       ; output 40
         RTS
 
 ; --- Hello World via character I/O at $FE01 ---
-HELLO   LDA #$48        ; 'H'
+HELLO:   LDA #$48        ; 'H'
         STA $FE01
         LDA #$65        ; 'e'
         STA $FE01

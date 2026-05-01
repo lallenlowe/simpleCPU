@@ -12,9 +12,31 @@ It is VERY loosely based on the classic 6502 Processor.
 - [Node.js >= 20](https://nodejs.org/en/download/)
 - Install deps: `npm i`
 - Build: `npm run build`
-- Assemble a program using any 6502 assembler (e.g. [masswerk](https://www.masswerk.at/6502/assembler.html), [ca65](https://cc65.github.io/doc/ca65.html), [vasm](http://sun.hasenbraten.de/vasm/))
-- Run: `node dist/index.js program.bin [--debug]`
+- Assemble a program (see below)
+- Run: `node dist/index.js program.bin [--org HEX] [--debug]`
 - Lint: `npm run lint`
+
+## Assembling and running
+
+Any 6502 assembler works. The included programs (`test.s`, `wozmon.s`, `a1basic.s`) use [cc65](https://cc65.github.io/) syntax. Install with `brew install cc65` on macOS.
+
+Assemble to a flat binary with `cl65 -t none -o program.bin program.s`. The source file's `.org` directive sets the load address — pass the matching `--org` flag when running.
+
+```sh
+# Test program (loads at $0200, the default)
+cl65 -t none -o test.bin test.s
+node dist/index.js test.bin
+
+# Woz Monitor (loads at $FF00)
+cl65 -t none -o wozmon.bin wozmon.s
+node dist/index.js wozmon.bin --org FF00
+
+# Apple 1 Integer BASIC (loads at $E000)
+cl65 -t none -o a1basic.bin a1basic.s
+node dist/index.js a1basic.bin --org E000
+```
+
+For Apple 1 BASIC, type things like `PRINT 6*7`, `10 PRINT "HI"`, `LIST`, `RUN`. Press Ctrl+C to exit.
 
 ## Supported Instructions
 
@@ -49,7 +71,7 @@ All 55 official 6502 instructions are implemented across all addressing modes (1
 | $FE02 | Input: status (1 = data ready) |
 | $FE03 | Input: read byte (clears status) |
 
-Programs should be assembled with `* = $0200` origin.
+The default load address is `$0200`. Use `--org HEX` to load elsewhere (e.g. `--org E000` for Apple 1 BASIC).
 
 ## Debug Mode
 

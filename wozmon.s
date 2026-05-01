@@ -26,7 +26,7 @@ IN              = $0300         ; Input buffer (above program code)
 
 ; simpleCPU I/O addresses
 
-IOSTATUS        = $FE02         ; Input status (1=data ready, 0=not ready)
+IOSTATUS        = $FE02         ; Input status ($80=data ready, 0=not ready)
 IOREAD          = $FE03         ; Input data (read character)
 IOWRITE         = $FE01         ; Output character
 

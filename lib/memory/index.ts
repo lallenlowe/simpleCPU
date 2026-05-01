@@ -22,11 +22,11 @@ type MemoryInterface = {
 const interfaceMemoryData = ({ bus, memory, output, input, controlWord, inputDevice }: MemoryInterface) => {
   if (output && controlWord.ro) {
     if (memory.addressRegister === IO_INPUT_STATUS) {
-      const newBus = outputToDataBus({ bus, data: hasData(inputDevice) ? 1 : 0 });
+      const newBus = outputToDataBus({ bus, data: hasData(inputDevice) ? 0x80 : 0 });
       return { bus: newBus, memory };
     }
     if (memory.addressRegister === IO_INPUT_DATA) {
-      const newBus = outputToDataBus({ bus, data: readByte(inputDevice) });
+      const newBus = outputToDataBus({ bus, data: readByte(inputDevice) | 0x80 });
       return { bus: newBus, memory };
     }
     const newBus = outputToDataBus({ bus, data: memory.data[memory.addressRegister] });
@@ -39,7 +39,9 @@ const interfaceMemoryData = ({ bus, memory, output, input, controlWord, inputDev
       return { bus, memory };
     }
     if (memory.addressRegister === IO_CHAR) {
-      process.stdout.write(String.fromCharCode(bus.data));
+      let ch = bus.data & 0x7f;
+      if (ch === 0x0d) ch = 0x0a;
+      process.stdout.write(String.fromCharCode(ch));
       return { bus, memory };
     }
     const newMemory = { ...memory };
