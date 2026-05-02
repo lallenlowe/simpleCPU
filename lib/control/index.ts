@@ -157,6 +157,7 @@ const instructionMap: InstructionMap = {
   CMPIY: 0xd1, // CMP (zp),Y | INDIRECT INDEXED
   JSR: 0x20, // Jump to subroutine | ABSOLUTE
   RTS: 0x60, // Return from subroutine | IMPLIED
+  RTI: 0x40, // Return from interrupt | IMPLIED
   PHA: 0x48, // Push accumulator | IMPLIED
   PLA: 0x68, // Pull accumulator | IMPLIED
   PHP: 0x08, // Push processor status | IMPLIED
@@ -222,6 +223,7 @@ type ControlWord = {
   dDec: boolean; // decrement: aluA + ~aluB + 1, no flag updates
   dahc: boolean; // add address carry to high byte of bus address register
   bai: boolean; // increment bus address register by 1
+  irqvec: boolean; // load $FFFE (IRQ/BRK vector) into bus address register
   if: { flag: string; value: boolean }[]; // Cpu status flags to set immediately
 };
 
@@ -282,6 +284,7 @@ const baseControl: ControlWord = {
   dDec: false, // decrement: aluA + ~aluB + 1, no flag updates
   dahc: false, // add address carry to high byte of bus address register
   bai: false, // increment bus address register by 1
+  irqvec: false, // load $FFFE (IRQ/BRK vector) into bus address register
   if: [], // Cpu status flags to set immediately
 };
 
@@ -292,7 +295,19 @@ const loadNextInstruction: MicroInstructions = [
 ];
 
 const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
-  [instructionMap.BRK]: { 0: [Object.assign({ ...baseControl }, { ht: true })] },
+  [instructionMap.BRK]: {
+    0: [
+      Object.assign({ ...baseControl }, { pce: true, if: [{ flag: 'B', value: true }] }),
+      Object.assign({ ...baseControl }, { spo: true, mi: true, pcho: true, ri: true, spd: true }),
+      Object.assign({ ...baseControl }, { spo: true, mi: true, pclo: true, ri: true, spd: true }),
+      Object.assign({ ...baseControl }, { spo: true, mi: true, sto: true, ri: true, spd: true }),
+      Object.assign({ ...baseControl }, { irqvec: true, if: [{ flag: 'I', value: true }] }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, la: true, bai: true }),
+      Object.assign({ ...baseControl }, { bao: true, mi: true, ro: true, dah: true, bac: true }),
+      Object.assign({ ...baseControl }, { lao: true, dal: true }),
+      Object.assign({ ...baseControl }, { bao: true, pcai: true, bac: true }),
+    ],
+  },
   [instructionMap.NOP]: { 0: [] },
   [instructionMap.SEC]: {
     0: [Object.assign({ ...baseControl }, { if: [{ flag: 'C', value: true }] })],
@@ -1517,7 +1532,7 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   [instructionMap.JSR]: {
     0: [
       Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dal: true, pce: true }),
-      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true, pce: true }),
+      Object.assign({ ...baseControl }, { pco: true, mi: true, ro: true, dah: true }),
       Object.assign({ ...baseControl }, { spo: true, mi: true, pcho: true, ri: true, spd: true }),
       Object.assign({ ...baseControl }, { spo: true, mi: true, pclo: true, ri: true, spd: true }),
       Object.assign({ ...baseControl }, { bao: true, pcai: true, bac: true }),
@@ -1525,6 +1540,17 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   },
   [instructionMap.RTS]: {
     0: [
+      Object.assign({ ...baseControl }, { spu: true }),
+      Object.assign({ ...baseControl }, { spo: true, mi: true, ro: true, dal: true }),
+      Object.assign({ ...baseControl }, { spu: true }),
+      Object.assign({ ...baseControl }, { spo: true, mi: true, ro: true, dah: true }),
+      Object.assign({ ...baseControl }, { bao: true, pcai: true, bac: true, pce: true }),
+    ],
+  },
+  [instructionMap.RTI]: {
+    0: [
+      Object.assign({ ...baseControl }, { spu: true }),
+      Object.assign({ ...baseControl }, { spo: true, mi: true, ro: true, sti: true }),
       Object.assign({ ...baseControl }, { spu: true }),
       Object.assign({ ...baseControl }, { spo: true, mi: true, ro: true, dal: true }),
       Object.assign({ ...baseControl }, { spu: true }),
