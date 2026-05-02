@@ -81,20 +81,23 @@ const cycle = (machineState: MachineState): MachineState => {
 
 const CYCLES_PER_BATCH = 50_000;
 
+let totalCycles = 0;
+let runStartTime = BigInt(0);
+
 const run = (machineState: MachineState): void => {
   let state = machineState;
-  let cycles = 0;
-  const startTime = process.hrtime.bigint();
+  totalCycles = 0;
+  runStartTime = process.hrtime.bigint();
 
   const batch = () => {
     for (let i = 0; i < CYCLES_PER_BATCH; i++) {
       const controlWord = getControlWord(state.cpuRegisters);
       state = cycle(state);
-      cycles++;
+      totalCycles++;
       if (controlWord.ht) {
-        const elapsed = Number(process.hrtime.bigint() - startTime) / 1e9;
-        const mhz = (cycles / elapsed) / 1e6;
-        process.stderr.write(`\n${cycles} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
+        const elapsed = Number(process.hrtime.bigint() - runStartTime) / 1e9;
+        const mhz = (totalCycles / elapsed) / 1e6;
+        process.stderr.write(`\n${totalCycles} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
         stopGraphics();
         teardownStdin(state.inputDevice);
         return;
@@ -147,6 +150,14 @@ const start = () => {
     stopGraphics();
     teardownStdin(inputDevice);
     process.exit(0);
+  });
+
+  process.on('exit', () => {
+    if (totalCycles > 0) {
+      const elapsed = Number(process.hrtime.bigint() - runStartTime) / 1e9;
+      const mhz = (totalCycles / elapsed) / 1e6;
+      process.stderr.write(`\n${totalCycles} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
+    }
   });
 
   run({ cpuRegisters, mainBus, systemMemory, inputDevice });
