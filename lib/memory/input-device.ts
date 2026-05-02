@@ -82,4 +82,21 @@ const readByte = (device: InputDevice): number => {
   return device.buffer.shift() ?? 0;
 };
 
-export { InputDevice, createInputDevice, hasData, readByte, setupStdin, teardownStdin };
+const checkInterrupt = (device: InputDevice): boolean => {
+  if (!device.active) return false;
+  const buf = Buffer.alloc(64);
+  try {
+    const bytesRead = fs.readSync(device.fd, buf, 0, 64, null);
+    if (bytesRead === 0) return false;
+    for (let i = 0; i < bytesRead; i++) {
+      if (buf[i] === 3) return true;
+      const byte = buf[i] === 0x0a ? 0x0d : buf[i];
+      device.buffer.push(byte);
+    }
+  } catch {
+    // EAGAIN
+  }
+  return false;
+};
+
+export { InputDevice, createInputDevice, hasData, readByte, setupStdin, teardownStdin, checkInterrupt };

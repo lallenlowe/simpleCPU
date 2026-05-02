@@ -6,7 +6,8 @@ import { incrementProgramCounter, incrementInstructionCounter } from './register
 import { setImmediateFlags, getControlWord } from './control';
 import * as alu from './alu';
 import { MachineState, clearBus, interfaceAllRegisters } from './bus';
-import { createInputDevice, setupStdin, teardownStdin } from './memory/input-device';
+import { createInputDevice, setupStdin, teardownStdin, checkInterrupt } from './memory/input-device';
+import { startGraphics, stopGraphics } from './graphics';
 
 const opcodeNames: Map<number, string> = new Map(
   Object.entries(instructionMap).map(([name, opcode]) => [opcode, name]),
@@ -78,22 +79,36 @@ const cycle = (machineState: MachineState): MachineState => {
   return { cpuRegisters, mainBus, systemMemory, inputDevice: machineState.inputDevice };
 };
 
+const CYCLES_PER_BATCH = 50_000;
+
 const run = (machineState: MachineState): void => {
   let state = machineState;
   let cycles = 0;
   const startTime = process.hrtime.bigint();
-  for (;;) {
-    const controlWord = getControlWord(state.cpuRegisters);
-    state = cycle(state);
-    cycles++;
-    if (controlWord.ht) {
-      const elapsed = Number(process.hrtime.bigint() - startTime) / 1e9;
-      const mhz = (cycles / elapsed) / 1e6;
-      process.stderr.write(`\n${cycles} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
+
+  const batch = () => {
+    for (let i = 0; i < CYCLES_PER_BATCH; i++) {
+      const controlWord = getControlWord(state.cpuRegisters);
+      state = cycle(state);
+      cycles++;
+      if (controlWord.ht) {
+        const elapsed = Number(process.hrtime.bigint() - startTime) / 1e9;
+        const mhz = (cycles / elapsed) / 1e6;
+        process.stderr.write(`\n${cycles} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
+        stopGraphics();
+        teardownStdin(state.inputDevice);
+        return;
+      }
+    }
+    if (checkInterrupt(state.inputDevice)) {
+      stopGraphics();
       teardownStdin(state.inputDevice);
       return;
     }
-  }
+    setImmediate(batch);
+  };
+
+  batch();
 };
 
 /* ##################################################################### */
@@ -126,6 +141,13 @@ const start = () => {
   systemMemory = loadBinFileToMemory(systemMemory, binFile, loadAddress);
   const inputDevice = createInputDevice();
   setupStdin(inputDevice);
+  startGraphics(systemMemory.data);
+
+  process.on('SIGINT', () => {
+    stopGraphics();
+    teardownStdin(inputDevice);
+    process.exit(0);
+  });
 
   run({ cpuRegisters, mainBus, systemMemory, inputDevice });
 };
