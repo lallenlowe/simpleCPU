@@ -6630,7 +6630,7 @@ LAB_2A89
 					; set null terminator and exit
 LAB_2A8C
 	LDA	#$00			; set null terminator
-	STA	Decss+1,Y		; save after last character
+	STA	Decss+1,Y		; save to output string
 
 					; set string pointer (AY) and exit
 LAB_2A91
