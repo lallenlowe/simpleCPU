@@ -75,14 +75,14 @@ const write = (s: string) => writeSync(1, s);
 
 const enterAltScreen = () => {
   if (inAltScreen) return;
-  write('\x1b[?1049h\x1b[?25l');
+  write('\x1b[?1049h\x1b[?25l\x1b[?1003h\x1b[?1006h');
   inAltScreen = true;
   prevFrame = '';
 };
 
 const leaveAltScreen = () => {
   if (!inAltScreen) return;
-  write('\x1b[?1049l\x1b[?25h');
+  write('\x1b[?1003l\x1b[?1006l\x1b[?1049l\x1b[?25h');
   inAltScreen = false;
 };
 

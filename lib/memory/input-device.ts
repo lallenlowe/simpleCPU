@@ -1,7 +1,6 @@
 'use strict';
 
 import * as fs from 'fs';
-import { writeSync } from 'fs';
 
 type InputDevice = {
   buffer: number[];
@@ -29,7 +28,6 @@ const setupStdin = (device: InputDevice): void => {
     } catch {
       device.fd = 0;
     }
-    writeSync(1, '\x1b[?1003h\x1b[?1006h');
   } else {
     device.fd = 0;
   }
@@ -39,7 +37,6 @@ const setupStdin = (device: InputDevice): void => {
 const teardownStdin = (device: InputDevice): void => {
   if (!device.active) return;
   if (device.fdIsTty) {
-    writeSync(1, '\x1b[?1003l\x1b[?1006l');
     process.stdin.setRawMode(false);
   }
   if (device.fd > 0) {
