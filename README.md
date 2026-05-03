@@ -48,15 +48,19 @@ cat programs/lander.bas | node dist/index.js programs/a1basic.bin --org E000
 
 ### Sample programs
 
-| Program | Description | How to run |
-|---------|-------------|------------|
-| `startrek.bas` | Super Star Trek (EhBASIC) | `(printf "C\n\n"; cat programs/startrek.bas) \| node dist/index.js` |
-| `lander.bas` | Lunar Lander (Apple 1 BASIC) | `cat programs/lander.bas \| node dist/index.js programs/a1basic.bin --org E000` |
-| `tictac.bas` | Tic-tac-toe (Apple 1 BASIC) | `cat programs/tictac.bas \| node dist/index.js programs/a1basic.bin --org E000` |
-| `bounce.bin` | Bouncing ball with vsync (assembly) | `node dist/index.js programs/bounce.bin --org 0400` |
-| `bounce.bas` | Bouncing ball (EhBASIC) | `(printf "C\n\n"; cat programs/bounce.bas) \| node dist/index.js` |
-| `gfxtest.bas` | Color gradient (EhBASIC) | `(printf "C\n\n"; cat programs/gfxtest.bas) \| node dist/index.js` |
-| `gfxtest2.bin` | Mode 2 vertical stripes (assembly) | `node dist/index.js programs/gfxtest2.bin --org 0400` |
+| Program | Load address | Description | How to run |
+|---------|-------------|-------------|------------|
+| `wozmon.bin` | `$0200` (default) | Woz Monitor | `node dist/index.js programs/wozmon.bin` |
+| `a1basic.bin` | `$E000` | Apple 1 Integer BASIC | `node dist/index.js programs/a1basic.bin --org E000` |
+| `test.bin` | `$0200` (default) | Simple test program | `node dist/index.js programs/test.bin` |
+| `bounce.bin` | `$0400` | Bouncing ball with vsync (assembly) | `node dist/index.js programs/bounce.bin --org 0400` |
+| `gfxtest.bin` | `$0400` | Color gradient (assembly) | `node dist/index.js programs/gfxtest.bin --org 0400` |
+| `gfxtest2.bin` | `$0400` | Mode 2 vertical stripes (assembly) | `node dist/index.js programs/gfxtest2.bin --org 0400` |
+| `startrek.bas` | — | Super Star Trek (EhBASIC) | `(printf "C\n\n"; cat programs/startrek.bas) \| node dist/index.js` |
+| `bounce.bas` | — | Bouncing ball (EhBASIC) | `(printf "C\n\n"; cat programs/bounce.bas) \| node dist/index.js` |
+| `gfxtest.bas` | — | Color gradient (EhBASIC) | `(printf "C\n\n"; cat programs/gfxtest.bas) \| node dist/index.js` |
+| `lander.bas` | — | Lunar Lander (Apple 1 BASIC) | `cat programs/lander.bas \| node dist/index.js programs/a1basic.bin --org E000` |
+| `tictac.bas` | — | Tic-tac-toe (Apple 1 BASIC) | `cat programs/tictac.bas \| node dist/index.js programs/a1basic.bin --org E000` |
 
 ### Assembling programs
 
