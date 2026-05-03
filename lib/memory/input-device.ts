@@ -33,10 +33,16 @@ const setupStdin = (device: InputDevice): void => {
     device.fd = 0;
   }
   device.active = true;
+  if (device.fdIsTty) {
+    fs.writeSync(1, '\x1b[?1003h\x1b[?1006h');
+  }
 };
 
 const teardownStdin = (device: InputDevice): void => {
   if (!device.active) return;
+  if (device.fdIsTty) {
+    fs.writeSync(1, '\x1b[?1003l\x1b[?1006l');
+  }
   if (device.ttyStream) {
     try { device.ttyStream.setRawMode(false); } catch { /* ignore */ }
   } else if (process.stdin.isTTY) {

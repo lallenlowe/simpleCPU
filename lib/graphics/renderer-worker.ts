@@ -10,7 +10,7 @@ const FRAMEBUFFER_START = 0x8000;
 const SPRITE_PATTERNS = 0x7e00;
 const SPRITE_REGS = 0xfe20;
 const NUM_SPRITES = 8;
-const FPS = 60;
+const FPS = 30;
 
 const data = new Uint8Array(workerData.buffer as SharedArrayBuffer);
 

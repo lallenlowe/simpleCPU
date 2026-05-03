@@ -56,6 +56,8 @@ BRICK_COL    = $F2
 BRICK_ROW    = $F3
 HIT_FLAG     = $F4
 CHECK_Y      = $F5
+BALL_SPEED   = $F6      ; frames per ball update (higher = slower)
+FRAME_CTR    = $F7      ; counts down to next ball update
 
 ; --- Constants ---
 PADDLE_Y     = 90
@@ -111,6 +113,10 @@ start:
     JSR clear_screen
     JSR draw_all_bricks
 
+    LDA #2
+    STA BALL_SPEED
+    STA FRAME_CTR
+
     LDA #56              ; (128-16)/2
     STA PADDLE_X
     STA OLD_PADDLE
@@ -139,6 +145,16 @@ game_loop:
 
     JSR handle_input
 
+    DEC FRAME_CTR
+    BNE @skip_ball
+    LDA BALL_SPEED
+    STA FRAME_CTR
+    JMP @move_ball
+@skip_ball:
+    JSR update_ball_sprite
+    JMP game_loop
+
+@move_ball:
     ; --- Move X ---
     LDA BALL_X
     CLC
