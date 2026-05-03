@@ -23,13 +23,13 @@ This boots straight into EhBASIC (Enhanced 6502 BASIC). Type `PRINT 6*7` to veri
 node dist/index.js
 
 # Woz Monitor
-node dist/index.js programs/wozmon.bin
+node dist/index.js programs/roms/wozmon.bin
 
 # Standalone assembly program (loads at $0400)
-node dist/index.js programs/bounce.bin --org 0400
+node dist/index.js programs/demos/bounce.bin --org 0400
 
 # Apple 1 Integer BASIC (loads at $E000, overrides default ROM)
-node dist/index.js programs/a1basic.bin --org E000 --rom none
+node dist/index.js programs/roms/a1basic.bin --org E000 --rom none
 ```
 
 The EhBASIC ROM is always loaded at `$C000`–`$FFFF` by default. Standalone programs get access to ROM routines (graphics primitives, I/O) automatically. Use `--rom <file>` to override the default ROM, or `--org` to set the load address for your binary.
@@ -40,34 +40,48 @@ You can pipe a `.bas` file as keyboard input — the simulator translates LF to 
 
 ```sh
 # EhBASIC programs (pipe C for Cold start, blank line to skip memory size)
-(printf "C\n\n"; cat programs/startrek.bas) | node dist/index.js
+(printf "C\n\n"; cat programs/games/startrek.bas) | node dist/index.js
 
 # Apple 1 BASIC programs
-cat programs/lander.bas | node dist/index.js programs/a1basic.bin --org E000
+cat programs/games/lander.bas | node dist/index.js programs/roms/a1basic.bin --org E000
 ```
 
 ### Sample programs
 
+#### ROMs (`programs/roms/`)
+
 | Program | Load address | Description | How to run |
 |---------|-------------|-------------|------------|
-| `wozmon.bin` | `$0200` (default) | Woz Monitor | `node dist/index.js programs/wozmon.bin` |
-| `a1basic.bin` | `$E000` | Apple 1 Integer BASIC | `node dist/index.js programs/a1basic.bin --org E000` |
-| `test.bin` | `$0200` (default) | Simple test program | `node dist/index.js programs/test.bin` |
-| `bounce.bin` | `$0400` | Bouncing ball with vsync (assembly) | `node dist/index.js programs/bounce.bin --org 0400` |
-| `gfxtest.bin` | `$0400` | Color gradient (assembly) | `node dist/index.js programs/gfxtest.bin --org 0400` |
-| `gfxtest2.bin` | `$0400` | Mode 2 vertical stripes (assembly) | `node dist/index.js programs/gfxtest2.bin --org 0400` |
-| `gfxtest3.bin` | `$0400` | Mode 3 color bars (assembly) | `node dist/index.js programs/gfxtest3.bin --org 0400` |
-| `gfxtest4.bin` | `$0400` | Mode 4 color bars (assembly) | `node dist/index.js programs/gfxtest4.bin --org 0400` |
-| `bounce3.bin` | `$0400` | Mode 3 bouncing ball (assembly) | `node dist/index.js programs/bounce3.bin --org 0400` |
-| `startrek.bas` | — | Super Star Trek (EhBASIC) | `(printf "C\n\n"; cat programs/startrek.bas) \| node dist/index.js` |
-| `bounce.bas` | — | Bouncing ball (EhBASIC) | `(printf "C\n\n"; cat programs/bounce.bas) \| node dist/index.js` |
-| `gfxtest.bas` | — | Color gradient (EhBASIC) | `(printf "C\n\n"; cat programs/gfxtest.bas) \| node dist/index.js` |
-| `colorbars3.bas` | — | Mode 3 color bars (EhBASIC) | `(printf "C\n\n"; cat programs/colorbars3.bas) \| node dist/index.js` |
-| `colorbars4.bas` | — | Mode 4 color bars (EhBASIC) | `(printf "C\n\n"; cat programs/colorbars4.bas) \| node dist/index.js` |
-| `soundtest.bin` | `$0400` | C major scale (assembly) | `node dist/index.js programs/soundtest.bin --org 0400` |
-| `soundtest.bas` | — | C major scale (EhBASIC) | `(printf "C\n\n"; cat programs/soundtest.bas) \| node dist/index.js` |
-| `lander.bas` | — | Lunar Lander (Apple 1 BASIC) | `cat programs/lander.bas \| node dist/index.js programs/a1basic.bin --org E000` |
-| `tictac.bas` | — | Tic-tac-toe (Apple 1 BASIC) | `cat programs/tictac.bas \| node dist/index.js programs/a1basic.bin --org E000` |
+| `wozmon.bin` | `$0200` (default) | Woz Monitor | `node dist/index.js programs/roms/wozmon.bin` |
+| `a1basic.bin` | `$E000` | Apple 1 Integer BASIC | `node dist/index.js programs/roms/a1basic.bin --org E000` |
+
+#### Games (`programs/games/`)
+
+| Program | Load address | Description | How to run |
+|---------|-------------|-------------|------------|
+| `breakout.bin` | `$0400` | Breakout with sound & sprites (assembly) | `node dist/index.js programs/games/breakout.bin --org 0400` |
+| `startrek.bas` | — | Super Star Trek (EhBASIC) | `(printf "C\n\n"; cat programs/games/startrek.bas) \| node dist/index.js` |
+| `lander.bas` | — | Lunar Lander (Apple 1 BASIC) | `cat programs/games/lander.bas \| node dist/index.js programs/roms/a1basic.bin --org E000` |
+| `tictac.bas` | — | Tic-tac-toe (Apple 1 BASIC) | `cat programs/games/tictac.bas \| node dist/index.js programs/roms/a1basic.bin --org E000` |
+
+#### Demos (`programs/demos/`)
+
+| Program | Load address | Description | How to run |
+|---------|-------------|-------------|------------|
+| `bounce.bin` | `$0400` | Bouncing ball with vsync (assembly) | `node dist/index.js programs/demos/bounce.bin --org 0400` |
+| `bounce3.bin` | `$0400` | Mode 3 bouncing ball (assembly) | `node dist/index.js programs/demos/bounce3.bin --org 0400` |
+| `gfxtest.bin` | `$0400` | Color gradient (assembly) | `node dist/index.js programs/demos/gfxtest.bin --org 0400` |
+| `gfxtest2.bin` | `$0400` | Mode 2 vertical stripes (assembly) | `node dist/index.js programs/demos/gfxtest2.bin --org 0400` |
+| `gfxtest3.bin` | `$0400` | Mode 3 color bars (assembly) | `node dist/index.js programs/demos/gfxtest3.bin --org 0400` |
+| `gfxtest4.bin` | `$0400` | Mode 4 color bars (assembly) | `node dist/index.js programs/demos/gfxtest4.bin --org 0400` |
+| `soundtest.bin` | `$0400` | C major scale (assembly) | `node dist/index.js programs/demos/soundtest.bin --org 0400` |
+| `chord.bin` | `$0400` | 3-channel chord (assembly) | `node dist/index.js programs/demos/chord.bin --org 0400` |
+| `noisetest.bin` | `$0400` | White noise channel (assembly) | `node dist/index.js programs/demos/noisetest.bin --org 0400` |
+| `bounce.bas` | — | Bouncing ball (EhBASIC) | `(printf "C\n\n"; cat programs/demos/bounce.bas) \| node dist/index.js` |
+| `gfxtest.bas` | — | Color gradient (EhBASIC) | `(printf "C\n\n"; cat programs/demos/gfxtest.bas) \| node dist/index.js` |
+| `colorbars3.bas` | — | Mode 3 color bars (EhBASIC) | `(printf "C\n\n"; cat programs/demos/colorbars3.bas) \| node dist/index.js` |
+| `colorbars4.bas` | — | Mode 4 color bars (EhBASIC) | `(printf "C\n\n"; cat programs/demos/colorbars4.bas) \| node dist/index.js` |
+| `soundtest.bas` | — | C major scale (EhBASIC) | `(printf "C\n\n"; cat programs/demos/soundtest.bas) \| node dist/index.js` |
 
 ### Assembling programs
 
@@ -79,9 +93,9 @@ ca65 --feature loose_string_term --feature labels_without_colons -o prog.o prog.
 ld65 -C programs/standalone.cfg -o prog.bin prog.o
 
 # Rebuild the EhBASIC ROM
-ca65 --feature loose_string_term --feature labels_without_colons -o ehbasic.o programs/ehbasic.asm
-ca65 --feature loose_string_term --feature labels_without_colons -o ehbasic_mon.o programs/ehbasic_mon.asm
-ld65 -C programs/ehbasic.cfg -o programs/ehbasic.bin ehbasic.o ehbasic_mon.o
+ca65 --feature loose_string_term --feature labels_without_colons -o ehbasic.o programs/roms/ehbasic.asm
+ca65 --feature loose_string_term --feature labels_without_colons -o ehbasic_mon.o programs/roms/ehbasic_mon.asm
+ld65 -C programs/roms/ehbasic.cfg -o programs/roms/ehbasic.bin ehbasic.o ehbasic_mon.o
 ```
 
 ## Graphics

@@ -171,7 +171,7 @@ const parseRom = (args: string[]): string | null => {
   if (args.includes('--no-rom')) return null;
   const idx = args.indexOf('--rom');
   if (idx !== -1 && idx + 1 < args.length) return args[idx + 1];
-  return path.join(__dirname, '..', '..', 'programs', 'ehbasic.bin');
+  return path.join(__dirname, '..', '..', 'programs', 'roms', 'ehbasic.bin');
 };
 
 const start = async () => {

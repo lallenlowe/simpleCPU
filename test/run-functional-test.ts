@@ -4,7 +4,7 @@ import * as path from 'path';
 const MAX_TICKS = 200_000_000;
 const WALL_TIMEOUT_SECONDS = 180;
 const PASS_ADDRESS = 0x3469;
-const TEST_BIN = path.join(__dirname, '..', '..', 'programs', '6502_functional_test.bin');
+const TEST_BIN = path.join(__dirname, '..', '..', 'programs', 'tests', '6502_functional_test.bin');
 
 const proc = spawn(
   'node',
