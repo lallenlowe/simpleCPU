@@ -244,7 +244,8 @@ game_over:
     STA CH1_VOLUME
     LDA #120
     STA SOUND_TIMER
-@halt: JMP @halt
+    JSR wait_for_key
+    JMP start
 
 ; ============================================================
 ; GAME WON
@@ -265,7 +266,8 @@ game_won:
     BPL @fan
     LDA #0
     STA CH1_VOLUME
-@wh: JMP @wh
+    JSR wait_for_key
+    JMP start
 
 ; ============================================================
 ; SUBROUTINES
@@ -736,6 +738,14 @@ clear_screen:
     INC FB_HI
     DEX
     BNE @pg
+    RTS
+
+; --- Wait for any key press ---
+wait_for_key:
+    LDA IO_STATUS
+    AND #$80
+    BEQ wait_for_key
+    LDA IO_DATA
     RTS
 
 ; --- Wait Y frames ---
