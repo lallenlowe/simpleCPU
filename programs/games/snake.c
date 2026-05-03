@@ -24,7 +24,7 @@
 #define ROWS      24         /* grid rows   */
 #define MAX_SEG   128        /* max snake length (must be power of 2) */
 #define SEG_MASK  (MAX_SEG-1)
-#define SPEED     3          /* vsync frames per move  (~10 moves/sec @ 30fps) */
+#define SPEED     6          /* vsync frames per move  (~5 moves/sec @ 30fps) */
 
 /* ------------------------------------------------------------------ */
 /* Colors (Mode 3 palette indices 0-15) */
