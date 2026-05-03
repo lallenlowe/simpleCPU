@@ -5,13 +5,14 @@ import * as fs from 'fs';
 type InputDevice = {
   buffer: number[];
   active: boolean;
+  interrupted: boolean;
   fd: number;
   fdIsTty: boolean;
   switchedToTty: boolean;
 };
 
 const createInputDevice = (): InputDevice => {
-  return { buffer: [], active: false, fd: 0, fdIsTty: false, switchedToTty: false };
+  return { buffer: [], active: false, interrupted: false, fd: 0, fdIsTty: false, switchedToTty: false };
 };
 
 const setupStdin = (device: InputDevice): void => {
@@ -62,8 +63,8 @@ const pollStdin = (device: InputDevice): void => {
     }
     for (let i = 0; i < bytesRead; i++) {
       if (buf[i] === 3) {
-        teardownStdin(device);
-        process.exit();
+        device.interrupted = true;
+        return;
       }
       const byte = buf[i] === 0x0a ? 0x0d : buf[i];
       device.buffer.push(byte);
@@ -74,6 +75,7 @@ const pollStdin = (device: InputDevice): void => {
 };
 
 const hasData = (device: InputDevice): boolean => {
+  if (device.interrupted) return false;
   pollStdin(device);
   return device.buffer.length > 0;
 };
@@ -83,13 +85,14 @@ const readByte = (device: InputDevice): number => {
 };
 
 const checkInterrupt = (device: InputDevice): boolean => {
+  if (device.interrupted) return true;
   if (!device.active) return false;
   const buf = Buffer.alloc(64);
   try {
     const bytesRead = fs.readSync(device.fd, buf, 0, 64, null);
     if (bytesRead === 0) return false;
     for (let i = 0; i < bytesRead; i++) {
-      if (buf[i] === 3) return true;
+      if (buf[i] === 3) { device.interrupted = true; return true; }
       const byte = buf[i] === 0x0a ? 0x0d : buf[i];
       device.buffer.push(byte);
     }
