@@ -16,20 +16,26 @@ const createInputDevice = (): InputDevice => {
 };
 
 const setupStdin = (device: InputDevice): void => {
-  device.fd = 0;
   device.fdIsTty = !!process.stdin.isTTY;
   if (device.fdIsTty) {
     process.stdin.setRawMode(true);
+    try {
+      device.fd = fs.openSync('/dev/tty', fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+    } catch {
+      device.fd = 0;
+    }
+  } else {
+    device.fd = 0;
   }
   device.active = true;
 };
 
 const teardownStdin = (device: InputDevice): void => {
   if (!device.active) return;
-  if (device.fdIsTty && device.fd === 0) {
+  if (device.fdIsTty) {
     process.stdin.setRawMode(false);
   }
-  if (device.switchedToTty && device.fd > 0) {
+  if (device.fd > 0) {
     try { fs.closeSync(device.fd); } catch { /* ignore */ }
   }
   device.active = false;
@@ -39,12 +45,10 @@ const teardownStdin = (device: InputDevice): void => {
 const switchToTty = (device: InputDevice): void => {
   if (device.switchedToTty) return;
   try {
-    const ttyFd = fs.openSync('/dev/tty', 'r');
+    const ttyFd = fs.openSync('/dev/tty', fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
     device.fd = ttyFd;
     device.fdIsTty = true;
     device.switchedToTty = true;
-    // Raw mode on the new tty so keystrokes arrive without line buffering.
-    // Node's stdin API doesn't help us here — use the TTY ioctl via a stream.
     const ttyStream = new (require('tty').ReadStream)(ttyFd);
     ttyStream.setRawMode(true);
   } catch {
