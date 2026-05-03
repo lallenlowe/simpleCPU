@@ -58,6 +58,11 @@ COL_BG       = 0
 COL_BALL     = 15       ; white
 COL_PADDLE   = 11       ; light cyan
 
+; ============================================================
+; ENTRY — jump past data tables
+; ============================================================
+    JMP start
+
 ; --- Data ---
 brick_colors: .byte 4, 12, 14, 2, 3       ; red, pink, yellow, green, cyan
 brick_freq_lo: .byte <880, <784, <659, <523, <440
