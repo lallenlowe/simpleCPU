@@ -236,7 +236,7 @@ PC=$0202 STAA  A=$01 X=$00 Y=$00 SP=$ff [nobdizc]
 
 ## Performance
 
-The simulator runs at approximately 2 MHz on modern hardware (reported on exit). This is comparable to original 6502 machines like the Apple II (1.023 MHz) and BBC Micro (2 MHz).
+The simulator runs at approximately 3.86 MHz on modern hardware (reported on exit). This is faster than original 6502 machines like the Apple II (1.023 MHz) and BBC Micro (2 MHz), despite modeling every microcode step.
 
 ## What this project is NOT
 
@@ -268,3 +268,9 @@ The simulator runs at approximately 2 MHz on modern hardware (reported on exit).
 - [ ] Snapshot / restore (dump full 64KB + CPU registers to a file)
 - [ ] Tape I/O via memory-mapped ports
 - [ ] Programming manual — retro-style reference in the spirit of the BBC Micro User Guide, once features stabilize
+- [ ] AssemblyScript / Rust / WASM — explore compiling the hot loop to WASM to push past 4 MHz while keeping the pedagogical TypeScript as the reference implementation
+- [ ] Keyboard interrupt for BASIC — proper IRQ from keypress so BASIC programs can respond without busy-polling IO_STATUS
+- [ ] Tilemap / character mode — a text/tile mode like the C64's character ROM for much faster BASIC text output than pixel-by-pixel drawing
+- [ ] Joystick / gamepad input — gamepad support for games
+- [ ] Built-in machine monitor — like the C64's monitor, letting you inspect memory and poke assembly from the BASIC prompt
+- [ ] Disk I/O — a simple block device so EhBASIC can SAVE/LOAD programs to files
