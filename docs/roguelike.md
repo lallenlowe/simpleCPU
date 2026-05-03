@@ -34,7 +34,8 @@ These come straight from DCSS's explicit philosophy, applied to our constraints:
 ## Display Layout
 
 Mode 3: 128×96, 4bpp, 16 colors.
-Tile size: 4×4 pixels.
+Tile size: 4×4 pixels — treated as a fixed CRT resolution, like a ZX Spectrum
+or BBC Micro Mode 2. Pixels are large and visible; that's the aesthetic.
 Grid: 32 columns × 24 rows.
 
 ```
@@ -54,7 +55,7 @@ Grid: 32 columns × 24 rows.
 **Map viewport (cols 0–23, rows 0–19):** 96×80 pixels.
 Scrolls to follow the player through the dungeon.
 
-**Separator (col 23):** Single-tile vertical line in wall color.
+**Separator (col 23):** Single-tile vertical line in dark gray (8).
 
 **Status panel (cols 24–31, rows 0–19):** 32×80 pixels.
 Contains player stats rendered with the pixel font (see Font section).
@@ -76,6 +77,152 @@ Message log capacity: **32 chars wide × 2 lines tall**.
 
 Font rendering draws only set pixels (plot3 calls), leaving background black.
 Status panel only redraws lines whose values have changed since last frame.
+
+---
+
+## Graphics Design
+
+All tiles are 4×4 pixels. On the 128×96 CRT canvas, pixels are large and
+chunky — the same visual weight as 8×8 tiles on a 256×192 screen.
+Color is the primary identity system. Pixel pattern is secondary texture.
+
+### Terrain Tiles
+
+Each pattern shown as a 4×4 grid. `█` = colored pixel, `.` = black (0).
+
+```
+Floor (in FOV)     Wall               Floor (explored)   Wall (explored)
+color 8 (dk gray)  color 7 (lt gray)  color 8 (1 pixel)  color 8 (dk gray)
+
+....               ████               ....               ████
+.██.               ████               ..\.               █...
+.██.               ████               ....               █...
+....               ████               ....               ████
+
+Door (closed)      Door (open)        Stairs Down        Stairs Up
+color 3 (brown)    color 3 (brown)    color 11 (yellow)  color 15 (white)
+
+.██.               ....               .██.               ...█
+.██.               ████               ████               .███
+.██.               ....               .██.               ███.
+.██.               ....               ..█.               ...█
+
+Water
+color 4 (dk blue) / color 12 (lt blue) alternating
+
+.█.█
+████
+.█.█
+████
+```
+
+**Explored-but-not-visible tiles** use a fixed dim version:
+- Walls: color 8 (dark gray) solid — you remember the shape
+- Floors: single center pixel color 8 — barely visible
+- Doors/stairs: same color but replaced with a single dim pixel
+
+**Unexplored tiles:** pure black (0). The dungeon is dark.
+
+### Player
+
+```
+Player
+color 15 (white) — brightest thing on screen, always
+
+.██.    ← head
+████    ← body/arms
+.██.    ← legs
+....    ← ground
+```
+
+The player is the only tile that uses this exact cross/person silhouette.
+No other tile or entity will have this pattern, so they're always findable
+instantly on a crowded screen.
+
+### Monsters
+
+Monsters are colored blobs scaled roughly to creature size. Color is the
+primary identifier — after a few runs the player learns the vocabulary
+exactly like learning Nethack glyphs.
+
+```
+Small (rat, kobold, bat)    Medium (goblin, orc, skeleton)
+blob in top-left 2×2         blob in center 3×3
+
+██..                         .██.
+██..                         ████
+....                         .██.
+....                         ....
+
+Large (troll, ogre, vampire) Boss (dragon)
+nearly full tile              full tile
+
+.██.                         ████
+████                         █.██
+████                         ██.█
+.██.                         ████
+```
+
+Monster color table (matches monster roster):
+
+| Monster      | Color | Value              |
+|--------------|-------|--------------------|  
+| Rat          | 9     | light red          |
+| Kobold       | 2     | dark green         |
+| Goblin       | 10    | light green        |
+| Giant Bat    | 8     | dark gray          |
+| Orc          | 3     | brown              |
+| Skeleton     | 7     | light gray         |
+| Orc Warrior  | 6     | dark cyan (armored)|
+| Troll        | 2     | dark green (big)   |
+| Ogre         | 8     | dark gray (huge)   |
+| Vampire      | 5     | dark magenta       |
+| Demon        | 1     | dark red           |
+| Lich         | 15    | white (undead)     |
+| Dragon       | 11    | yellow (boss)      |
+
+Note: Troll and Kobold share green, Skeleton and Lich share near-white —
+but their blob SIZE differs (small vs large), and they never appear on the
+same floors. Depth context disambiguates.
+
+### Items on the Floor
+
+Items are always a centered 2×2 square — smaller and dimmer than monsters,
+clearly secondary to entities. Shape is the same; color identifies type.
+
+```
+All items:
+....
+.██.
+.██.
+....
+```
+
+| Item type | Color | Value          |
+|-----------|-------|----------------|
+| Weapon    | 14    | light cyan     |
+| Armor     | 7     | light gray     |
+| Potion    | 13    | light magenta  |
+| Scroll    | 11    | yellow         |
+| Gold      | 11    | yellow (4 corner pixels — different shape from scroll) |
+
+Gold pixel pattern (distinguished from scroll by shape):
+```
+█..█
+....
+....
+█..█
+```
+
+### UI Areas
+
+**Status panel background:** pure black (0). Text drawn in white (15) or
+color-coded (HP bar goes green→yellow→red as HP drops).
+
+**Message log background:** very dark gray — single pixel row of color 8
+along the top edge (row 20) as a divider, rest black.
+
+**Separator column:** solid color 8 (dark gray) from row 0 to row 19.
 
 ---
 
