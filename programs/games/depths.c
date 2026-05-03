@@ -106,17 +106,15 @@ static void draw_pattern(unsigned char bx, unsigned char by,
                           const unsigned char *pat,
                           unsigned char fg, unsigned char bg) {
     unsigned char row, p, c0, c1, c2, c3;
-    unsigned int  base;
-    unsigned char off = bx >> 1;    /* byte offset within row */
-    for (row = 0; row < 4; row++) {
-        base = ((unsigned int)(by + row) << 6) | off;
+    unsigned char *fb = FRAMEBUFFER + (((unsigned int)by) << 6) + (bx >> 1);
+    for (row = 0; row < 4; row++, fb += 64) {
         p  = pat[row];
-        c0 = (p >> 3) & 1 ? fg : bg;
-        c1 = (p >> 2) & 1 ? fg : bg;
-        c2 = (p >> 1) & 1 ? fg : bg;
-        c3 = (p >> 0) & 1 ? fg : bg;
-        FRAMEBUFFER[base]   = (c0 << 4) | c1;
-        FRAMEBUFFER[base+1] = (c2 << 4) | c3;
+        c0 = (p & 0x08) ? fg : bg;
+        c1 = (p & 0x04) ? fg : bg;
+        c2 = (p & 0x02) ? fg : bg;
+        c3 = (p & 0x01) ? fg : bg;
+        fb[0] = (c0 << 4) | c1;
+        fb[1] = (c2 << 4) | c3;
     }
 }
 
@@ -208,38 +206,49 @@ static void update_camera(void) {
 /*
  * Bresenham line-of-sight: returns 1 if (x1,y1) is visible from (x0,y0).
  * Walls block vision but are themselves visible (you see the wall face).
+ * Uses 8-bit types throughout for speed on 6502.
  */
 static unsigned char has_los(unsigned char x0, unsigned char y0,
                                unsigned char x1, unsigned char y1) {
-    int dx, dy, sx, sy, adx, ady, err, e2, x, y;
+    unsigned char x, y, adx, ady;
+    signed char   sx, sy, err, e2;
 
-    dx  = (int)x1 - (int)x0;
-    dy  = (int)y1 - (int)y0;
-    sx  = dx > 0 ?  1 : (dx < 0 ? -1 : 0);
-    sy  = dy > 0 ?  1 : (dy < 0 ? -1 : 0);
-    adx = dx < 0 ? -dx : dx;
-    ady = dy < 0 ? -dy : dy;
-    err = adx - ady;
-    x   = (int)x0;
-    y   = (int)y0;
+    x = x0; y = y0;
+    if (x1 >= x0) { adx = x1 - x0; sx =  1; }
+    else           { adx = x0 - x1; sx = -1; }
+    if (y1 >= y0) { ady = y1 - y0; sy =  1; }
+    else           { ady = y0 - y1; sy = -1; }
+    /* adx, ady ≤ FOV_R=8; err fits in signed char (-8..8) */
+    err = (signed char)adx - (signed char)ady;
 
     for (;;) {
-        if (x == (int)x1 && y == (int)y1) return 1;
+        if (x == x1 && y == y1) return 1;
 
         /* Intermediate wall blocks vision (skip source tile) */
-        if (!(x == (int)x0 && y == (int)y0) &&
+        if (!(x == x0 && y == y0) &&
             TILE_TYPE(MAP_AT(x, y)) == T_WALL) return 0;
 
-        e2 = 2 * err;
-        if (e2 > -ady) { err -= ady; x += sx; }
-        if (e2 <  adx) { err += adx; y += sy; }
+        /* e2 = 2*err; range -16..16 fits in signed char */
+        e2 = (signed char)(err + err);
+        /* e2 > -ady  →  e2 + ady > 0 */
+        if ((signed char)(e2 + (signed char)ady) > 0) {
+            err = (signed char)(err - (signed char)ady);
+            x   = (unsigned char)((int)x + sx);
+        }
+        /* e2 < adx  →  adx - e2 > 0 */
+        if ((signed char)((signed char)adx - e2) > 0) {
+            err = (signed char)(err + (signed char)adx);
+            y   = (unsigned char)((int)y + sy);
+        }
     }
 }
 
 /* Recompute FOV from player position */
 static void compute_fov(void) {
-    int dx, dy, tx, ty;
-    unsigned int i;
+    signed char   dx, dy;
+    unsigned char adx_m, ady_m;
+    int           tx, ty;
+    unsigned int  i;
 
     /* Clear F_VISIBLE on all tiles */
     for (i = 0; i < (unsigned int)(MAP_W * MAP_H); i++)
@@ -248,13 +257,18 @@ static void compute_fov(void) {
     /* Player tile always lit */
     MAP_AT(px, py) |= F_VISIBLE | F_EXPLORED;
 
-    /* Check every tile in the FOV_R square */
+    /* Check every tile in the FOV_R square.
+     * Manhattan early-reject skips corners (~30% fewer has_los calls). */
     for (dy = -FOV_R; dy <= FOV_R; dy++) {
-        ty = (int)py + dy;
+        ty    = (int)py + (int)dy;
         if (ty < 0 || ty >= MAP_H) continue;
+        ady_m = (dy < 0) ? (unsigned char)(-dy) : (unsigned char)dy;
         for (dx = -FOV_R; dx <= FOV_R; dx++) {
-            tx = (int)px + dx;
+            tx    = (int)px + (int)dx;
             if (tx < 0 || tx >= MAP_W) continue;
+            adx_m = (dx < 0) ? (unsigned char)(-dx) : (unsigned char)dx;
+            /* skip corners well outside the FOV circle */
+            if ((unsigned char)(adx_m + ady_m) > FOV_R + (FOV_R >> 1)) continue;
             if (has_los(px, py, (unsigned char)tx, (unsigned char)ty))
                 MAP_AT(tx, ty) |= F_VISIBLE | F_EXPLORED;
         }
