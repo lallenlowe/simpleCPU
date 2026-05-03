@@ -1,6 +1,6 @@
 /*
  * depths.c — DEPTHS: A Roguelike for simpleCPU
- * Phase 1: map generation, FOV, player movement, viewport scrolling
+ * Phase 2: pixel font, status panel, message log, stair descent
  *
  * Build:
  *   make -f ../../target/cc65/Makefile depths.bin
@@ -14,19 +14,27 @@
 /* Config                                                              */
 /* ------------------------------------------------------------------ */
 
-#define MAP_W     64        /* dungeon width  — power of 2 for fast y*64 */
-#define MAP_H     32        /* dungeon height                             */
-#define VIEW_W    24        /* map viewport width  (tiles)                */
-#define VIEW_H    20        /* map viewport height (tiles)                */
-#define FOV_R      8        /* field-of-view radius (tiles)               */
-#define MAX_ROOMS 12        /* max rooms per floor                        */
+#define MAP_W      64
+#define MAP_H      32
+#define VIEW_W     20        /* map viewport width  — narrowed to give status room */
+#define VIEW_H     20
+#define FOV_R       8
+#define MAX_ROOMS  12
+
+/* Status panel: pixel x=80 onward (12 chars × 4px = 48px → x=84..127) */
+#define SEP_X      80        /* separator pixel x (2 dark pixels)       */
+#define STAT_X     84        /* first status char pixel x                */
+#define STAT_CHARS 11        /* chars per status line                    */
+#define STAT_LINES 10        /* lines in status panel                    */
+
+/* Message log: pixel rows 80-95, full 128px width */
+#define MSG_Y0     80        /* pixel y of message line 0               */
+#define MSG_Y1     88        /* pixel y of message line 1               */
+#define MSG_CHARS  32        /* chars per message line                   */
 
 /* ------------------------------------------------------------------ */
 /* Tile encoding                                                        */
 /* ------------------------------------------------------------------ */
-/* Each map byte:  bits 0-2 = tile type   (0-6)                        */
-/*                 bit  3   = F_EXPLORED  (has ever been seen)         */
-/*                 bit  4   = F_VISIBLE   (in current FOV)             */
 
 #define T_WALL    0
 #define T_FLOOR   1
@@ -43,15 +51,12 @@
 #define IS_EXPLORED(t) ((t) & F_EXPLORED)
 #define IS_VISIBLE(t)  ((t) & F_VISIBLE)
 
-/* MAP_W=64 so y*64 = y<<6 — no multiply needed */
 #define MAP_IDX(x,y)  (((unsigned int)(y) << 6) | (unsigned char)(x))
 #define MAP_AT(x,y)   map_data[MAP_IDX((x),(y))]
 
 /* ------------------------------------------------------------------ */
-/* Pixel patterns                                                       */
+/* Pixel patterns (4×4, bit3=left pixel)                               */
 /* ------------------------------------------------------------------ */
-/* 4 bytes; bit 3 = leftmost pixel, bit 0 = rightmost pixel.           */
-/* Set bits render as fg colour, clear bits as bg colour.              */
 
 static const unsigned char PAT_BLANK[]   = { 0x00, 0x00, 0x00, 0x00 };
 static const unsigned char PAT_WALL[]    = { 0x0F, 0x0F, 0x0F, 0x0F };
@@ -63,16 +68,86 @@ static const unsigned char PAT_WATER[]   = { 0x05, 0x0F, 0x05, 0x0F };
 static const unsigned char PAT_PLAYER[]  = { 0x06, 0x0F, 0x06, 0x00 };
 
 /* ------------------------------------------------------------------ */
+/* Pixel font — 4×8, ASCII 32-90                                        */
+/* ------------------------------------------------------------------ */
+/* Each entry: 8 bytes, one per pixel row.                             */
+/* Bit 3 = leftmost pixel, bit 0 = rightmost.                         */
+
+#define FONT_FIRST 32
+#define FONT_LAST  90
+
+static const unsigned char font_data[59][8] = {
+/* 32 ' ' */ {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
+/* 33 '!' */ {0x04,0x04,0x04,0x04,0x04,0x00,0x04,0x00},
+/* 34 '"' */ {0x0A,0x0A,0x00,0x00,0x00,0x00,0x00,0x00},
+/* 35 '#' */ {0x0A,0x0F,0x0A,0x0F,0x0A,0x00,0x00,0x00},
+/* 36 '$' */ {0x04,0x0F,0x08,0x07,0x01,0x0F,0x04,0x00},
+/* 37 '%' */ {0x09,0x02,0x04,0x00,0x04,0x02,0x09,0x00},
+/* 38 '&' */ {0x06,0x09,0x06,0x0A,0x09,0x09,0x06,0x00},
+/* 39 '\''*/ {0x06,0x04,0x08,0x00,0x00,0x00,0x00,0x00},
+/* 40 '(' */ {0x02,0x04,0x08,0x08,0x08,0x04,0x02,0x00},
+/* 41 ')' */ {0x08,0x04,0x02,0x02,0x02,0x04,0x08,0x00},
+/* 42 '*' */ {0x00,0x0A,0x04,0x0F,0x04,0x0A,0x00,0x00},
+/* 43 '+' */ {0x00,0x04,0x04,0x0F,0x04,0x04,0x00,0x00},
+/* 44 ',' */ {0x00,0x00,0x00,0x00,0x06,0x04,0x08,0x00},
+/* 45 '-' */ {0x00,0x00,0x00,0x0F,0x00,0x00,0x00,0x00},
+/* 46 '.' */ {0x00,0x00,0x00,0x00,0x00,0x06,0x06,0x00},
+/* 47 '/' */ {0x01,0x01,0x02,0x02,0x04,0x04,0x08,0x00},
+/* 48 '0' */ {0x06,0x09,0x09,0x09,0x09,0x09,0x06,0x00},
+/* 49 '1' */ {0x04,0x0C,0x04,0x04,0x04,0x04,0x0E,0x00},
+/* 50 '2' */ {0x06,0x09,0x01,0x02,0x04,0x08,0x0F,0x00},
+/* 51 '3' */ {0x0E,0x01,0x01,0x06,0x01,0x01,0x0E,0x00},
+/* 52 '4' */ {0x03,0x05,0x09,0x0F,0x01,0x01,0x01,0x00},
+/* 53 '5' */ {0x0F,0x08,0x08,0x0E,0x01,0x01,0x0E,0x00},
+/* 54 '6' */ {0x06,0x08,0x08,0x0E,0x09,0x09,0x06,0x00},
+/* 55 '7' */ {0x0F,0x01,0x02,0x02,0x04,0x04,0x04,0x00},
+/* 56 '8' */ {0x06,0x09,0x09,0x06,0x09,0x09,0x06,0x00},
+/* 57 '9' */ {0x06,0x09,0x09,0x07,0x01,0x01,0x06,0x00},
+/* 58 ':' */ {0x00,0x06,0x06,0x00,0x06,0x06,0x00,0x00},
+/* 59 ';' */ {0x00,0x06,0x06,0x00,0x06,0x04,0x08,0x00},
+/* 60 '<' */ {0x01,0x02,0x04,0x08,0x04,0x02,0x01,0x00},
+/* 61 '=' */ {0x00,0x00,0x0F,0x00,0x0F,0x00,0x00,0x00},
+/* 62 '>' */ {0x08,0x04,0x02,0x01,0x02,0x04,0x08,0x00},
+/* 63 '?' */ {0x06,0x09,0x01,0x02,0x04,0x00,0x04,0x00},
+/* 64 '@' */ {0x06,0x09,0x0B,0x0B,0x0A,0x09,0x06,0x00},
+/* 65 'A' */ {0x06,0x09,0x09,0x0F,0x09,0x09,0x09,0x00},
+/* 66 'B' */ {0x0E,0x09,0x09,0x0E,0x09,0x09,0x0E,0x00},
+/* 67 'C' */ {0x07,0x08,0x08,0x08,0x08,0x08,0x07,0x00},
+/* 68 'D' */ {0x0E,0x09,0x09,0x09,0x09,0x09,0x0E,0x00},
+/* 69 'E' */ {0x0F,0x08,0x08,0x0E,0x08,0x08,0x0F,0x00},
+/* 70 'F' */ {0x0F,0x08,0x08,0x0E,0x08,0x08,0x08,0x00},
+/* 71 'G' */ {0x06,0x09,0x08,0x08,0x0B,0x09,0x06,0x00},
+/* 72 'H' */ {0x09,0x09,0x09,0x0F,0x09,0x09,0x09,0x00},
+/* 73 'I' */ {0x0E,0x04,0x04,0x04,0x04,0x04,0x0E,0x00},
+/* 74 'J' */ {0x01,0x01,0x01,0x01,0x01,0x09,0x06,0x00},
+/* 75 'K' */ {0x09,0x0A,0x0C,0x08,0x0C,0x0A,0x09,0x00},
+/* 76 'L' */ {0x08,0x08,0x08,0x08,0x08,0x08,0x0F,0x00},
+/* 77 'M' */ {0x09,0x0F,0x09,0x09,0x09,0x09,0x09,0x00},
+/* 78 'N' */ {0x09,0x0D,0x0D,0x0B,0x0B,0x09,0x09,0x00},
+/* 79 'O' */ {0x06,0x09,0x09,0x09,0x09,0x09,0x06,0x00},
+/* 80 'P' */ {0x0E,0x09,0x09,0x0E,0x08,0x08,0x08,0x00},
+/* 81 'Q' */ {0x06,0x09,0x09,0x09,0x09,0x0A,0x07,0x00},
+/* 82 'R' */ {0x0E,0x09,0x09,0x0E,0x0C,0x0A,0x09,0x00},
+/* 83 'S' */ {0x07,0x08,0x08,0x06,0x01,0x01,0x0E,0x00},
+/* 84 'T' */ {0x0F,0x04,0x04,0x04,0x04,0x04,0x04,0x00},
+/* 85 'U' */ {0x09,0x09,0x09,0x09,0x09,0x09,0x06,0x00},
+/* 86 'V' */ {0x09,0x09,0x09,0x09,0x09,0x06,0x04,0x00},
+/* 87 'W' */ {0x09,0x09,0x09,0x09,0x0B,0x0F,0x09,0x00},
+/* 88 'X' */ {0x09,0x06,0x06,0x00,0x06,0x06,0x09,0x00},
+/* 89 'Y' */ {0x09,0x09,0x06,0x04,0x04,0x04,0x04,0x00},
+/* 90 'Z' */ {0x0F,0x01,0x02,0x06,0x04,0x08,0x0F,0x00},
+};
+
+/* ------------------------------------------------------------------ */
 /* Game state                                                           */
 /* ------------------------------------------------------------------ */
 
-static unsigned char map_data[MAP_W * MAP_H];   /* 2048 bytes          */
+static unsigned char map_data[MAP_W * MAP_H];
 
-static unsigned char px, py;                    /* player position     */
-static unsigned char cam_x, cam_y;              /* viewport top-left   */
-static unsigned char depth;                     /* current floor       */
+static unsigned char px, py;
+static unsigned char cam_x, cam_y;
+static unsigned char depth;
 
-/* Room data (used during generation only, kept for future use) */
 static unsigned char num_rooms;
 static unsigned char room_cx[MAX_ROOMS];
 static unsigned char room_cy[MAX_ROOMS];
@@ -84,7 +159,67 @@ static unsigned char room_rh[MAX_ROOMS];
 static unsigned int  rng;
 
 /* ------------------------------------------------------------------ */
-/* RNG — xorshift16                                                     */
+/* Player stats                                                         */
+/* ------------------------------------------------------------------ */
+
+static unsigned char player_hp;
+static unsigned char player_maxhp;
+static unsigned char player_str;
+static unsigned char player_dex;
+static unsigned char player_def;
+static unsigned char player_level;
+static unsigned int  player_xp;
+static unsigned int  player_gold;
+
+/* 4-char abbreviated names (5 bytes incl. NUL) */
+static unsigned char player_wpn[5];
+static unsigned char player_arm[5];
+
+/* ------------------------------------------------------------------ */
+/* Message log                                                          */
+/* ------------------------------------------------------------------ */
+
+static unsigned char msg[2][MSG_CHARS + 1];
+
+/* ------------------------------------------------------------------ */
+/* Format buffer (for building status strings)                          */
+/* ------------------------------------------------------------------ */
+
+static unsigned char fmt_buf[STAT_CHARS + 1];
+static unsigned char fmt_len;
+
+static void fmt_reset(void) { fmt_len = 0; fmt_buf[0] = 0; }
+
+static void fmt_chr(unsigned char c) {
+    if (fmt_len < STAT_CHARS) {
+        fmt_buf[fmt_len++] = c;
+        fmt_buf[fmt_len]   = 0;
+    }
+}
+
+static void fmt_str(const unsigned char *s) {
+    while (*s) fmt_chr(*s++);
+}
+
+static void fmt_u8(unsigned char n) {
+    if (n >= 100) fmt_chr((unsigned char)('0' + n / 100));
+    if (n >= 10)  fmt_chr((unsigned char)('0' + (n / 10) % 10));
+    fmt_chr((unsigned char)('0' + n % 10));
+}
+
+static void fmt_u16(unsigned int n) {
+    if (n >= 1000) fmt_chr((unsigned char)('0' + n / 1000));
+    if (n >= 100)  fmt_chr((unsigned char)('0' + (n / 100) % 10));
+    if (n >= 10)   fmt_chr((unsigned char)('0' + (n / 10)  % 10));
+    fmt_chr((unsigned char)('0' + n % 10));
+}
+
+static void fmt_pad(unsigned char w) {
+    while (fmt_len < w) fmt_chr(' ');
+}
+
+/* ------------------------------------------------------------------ */
+/* RNG                                                                  */
 /* ------------------------------------------------------------------ */
 
 static unsigned char rand8(void) {
@@ -95,13 +230,9 @@ static unsigned char rand8(void) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Graphics                                                             */
+/* Drawing — tiles                                                       */
 /* ------------------------------------------------------------------ */
 
-/*
- * Draw a 4x4 pixel pattern at pixel position (bx, by).
- * bx must be a multiple of 4. Set bits → fg, clear bits → bg.
- */
 static void draw_pattern(unsigned char bx, unsigned char by,
                           const unsigned char *pat,
                           unsigned char fg, unsigned char bg) {
@@ -118,19 +249,16 @@ static void draw_pattern(unsigned char bx, unsigned char by,
     }
 }
 
-/* Render one map tile at viewport screen coords (sx, sy) */
 static void draw_map_tile(unsigned char sx, unsigned char sy,
                            unsigned char tile) {
     unsigned char t  = TILE_TYPE(tile);
-    unsigned char bx = (unsigned char)(sx << 2);   /* sx * 4 */
-    unsigned char by = (unsigned char)(sy << 2);   /* sy * 4 */
-
+    unsigned char bx = (unsigned char)(sx << 2);
+    unsigned char by = (unsigned char)(sy << 2);
     if (!IS_EXPLORED(tile)) {
         draw_pattern(bx, by, PAT_BLANK, 0, 0);
         return;
     }
     if (!IS_VISIBLE(tile)) {
-        /* Memory: walls solid dim, everything else faint dot */
         draw_pattern(bx, by, (t == T_WALL) ? PAT_WALL : PAT_FLOOR, 8, 0);
         return;
     }
@@ -146,7 +274,6 @@ static void draw_map_tile(unsigned char sx, unsigned char sy,
     }
 }
 
-/* Render the full map viewport */
 static void draw_viewport(void) {
     unsigned char vx, vy;
     for (vy = 0; vy < VIEW_H; vy++)
@@ -154,7 +281,6 @@ static void draw_viewport(void) {
             draw_map_tile(vx, vy, MAP_AT(cam_x + vx, cam_y + vy));
 }
 
-/* Draw the player sprite over the viewport */
 static void draw_player(void) {
     unsigned char vx = px - cam_x;
     unsigned char vy = py - cam_y;
@@ -164,27 +290,157 @@ static void draw_player(void) {
                      PAT_PLAYER, 15, 0);
 }
 
-/*
- * Draw the static UI chrome:
- *   — 4-pixel dark-gray separator at pixel x=96 (tile col 24)
- *   — 1-row dark-gray divider at pixel y=80 (between map and message log)
- * Everything else (status panel, message log) starts as black.
- */
+/* ------------------------------------------------------------------ */
+/* Drawing — font                                                        */
+/* ------------------------------------------------------------------ */
+
+/* Draw one character at pixel (bx, by). bx must be multiple of 4.    */
+static void draw_char(unsigned char bx, unsigned char by,
+                       unsigned char c, unsigned char color) {
+    const unsigned char *glyph;
+    unsigned char row, p, c0, c1, c2, c3;
+    unsigned char *fb;
+
+    if (c < FONT_FIRST || c > FONT_LAST)
+        glyph = font_data[0];           /* fallback: space */
+    else
+        glyph = font_data[c - FONT_FIRST];
+
+    fb = FRAMEBUFFER + (((unsigned int)by) << 6) + (bx >> 1);
+    for (row = 0; row < 8; row++, fb += 64) {
+        p  = glyph[row];
+        c0 = (p & 0x08) ? color : 0;
+        c1 = (p & 0x04) ? color : 0;
+        c2 = (p & 0x02) ? color : 0;
+        c3 = (p & 0x01) ? color : 0;
+        fb[0] = (c0 << 4) | c1;
+        fb[1] = (c2 << 4) | c3;
+    }
+}
+
+/* Draw a NUL-terminated string at pixel (bx, by). */
+static void draw_str(unsigned char bx, unsigned char by,
+                      const unsigned char *s, unsigned char color) {
+    while (*s) {
+        draw_char(bx, by, *s++, color);
+        bx += 4;
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Status panel                                                          */
+/* ------------------------------------------------------------------ */
+
+/* Draw one status panel line (0-9) using the current fmt_buf content. */
+static void stat_draw_line(unsigned char line, unsigned char color) {
+    unsigned char i;
+    unsigned char bx = STAT_X;
+    unsigned char by = (unsigned char)(line * 8);
+    /* Pad fmt_buf to full width with spaces */
+    fmt_pad(STAT_CHARS);
+    for (i = 0; i < STAT_CHARS; i++, bx += 4)
+        draw_char(bx, by, fmt_buf[i], color);
+}
+
+/* HP bar color: green → yellow → red as HP drops */
+static unsigned char hp_color(void) {
+    unsigned char pct = (unsigned char)((unsigned int)player_hp * 100 / player_maxhp);
+    if (pct > 66) return 10;    /* green  */
+    if (pct > 33) return 11;    /* yellow */
+    return 9;                   /* red    */
+}
+
+static void draw_status_panel(void) {
+    /* Line 0: HP */
+    fmt_reset();
+    fmt_str((const unsigned char *)"HP:");
+    fmt_u8(player_hp); fmt_chr('/'); fmt_u8(player_maxhp);
+    stat_draw_line(0, hp_color());
+
+    /* Line 1: Level and Floor */
+    fmt_reset();
+    fmt_str((const unsigned char *)"LV:"); fmt_u8(player_level);
+    fmt_str((const unsigned char *)" FL:"); fmt_u8(depth);
+    stat_draw_line(1, 15);
+
+    /* Line 2: XP */
+    fmt_reset();
+    fmt_str((const unsigned char *)"XP:"); fmt_u16(player_xp);
+    stat_draw_line(2, 11);
+
+    /* Line 3: STR and DEX */
+    fmt_reset();
+    fmt_str((const unsigned char *)"ST:"); fmt_u8(player_str);
+    fmt_str((const unsigned char *)" DX:"); fmt_u8(player_dex);
+    stat_draw_line(3, 15);
+
+    /* Line 4: DEF */
+    fmt_reset();
+    fmt_str((const unsigned char *)"DEF:"); fmt_u8(player_def);
+    stat_draw_line(4, 15);
+
+    /* Line 5: Gold */
+    fmt_reset();
+    fmt_str((const unsigned char *)"GOLD:"); fmt_u16(player_gold);
+    stat_draw_line(5, 11);
+
+    /* Line 6: Weapon */
+    fmt_reset();
+    fmt_str((const unsigned char *)"WP:"); fmt_str(player_wpn);
+    stat_draw_line(6, 14);
+
+    /* Line 7: Armor */
+    fmt_reset();
+    fmt_str((const unsigned char *)"AR:"); fmt_str(player_arm);
+    stat_draw_line(7, 7);
+
+    /* Lines 8-9: blank */
+    fmt_reset();
+    stat_draw_line(8, 0);
+    fmt_reset();
+    stat_draw_line(9, 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* Message log                                                           */
+/* ------------------------------------------------------------------ */
+
+static void draw_messages(void) {
+    unsigned char i;
+    for (i = 0; i < MSG_CHARS; i++) {
+        draw_char((unsigned char)(i << 2), MSG_Y0, msg[0][i], 15);
+        draw_char((unsigned char)(i << 2), MSG_Y1, msg[1][i],  8);
+    }
+}
+
+static void add_message(const unsigned char *s) {
+    unsigned char i;
+    /* Scroll: line 0 → line 1 */
+    for (i = 0; i <= MSG_CHARS; i++) msg[1][i] = msg[0][i];
+    /* Fill line 0 with spaces, then copy s */
+    for (i = 0; i < MSG_CHARS; i++) msg[0][i] = ' ';
+    msg[0][MSG_CHARS] = 0;
+    for (i = 0; i < MSG_CHARS && s[i]; i++) msg[0][i] = s[i];
+    draw_messages();
+}
+
+/* ------------------------------------------------------------------ */
+/* UI chrome                                                            */
+/* ------------------------------------------------------------------ */
+
 static void draw_ui(void) {
     unsigned int  base;
     unsigned char i;
 
-    /* Separator: pixel columns 96-99, rows 0-79 */
+    /* Separator: 2 dark-gray pixels at x=80-81 (byte offset 40) */
     for (i = 0; i < 80; i++) {
-        base = ((unsigned int)i << 6) | 48;   /* byte offset 48 = pixel x 96 */
-        FRAMEBUFFER[base]   = 0x88;
-        FRAMEBUFFER[base+1] = 0x88;
+        base = ((unsigned int)i << 6) | 40;
+        FRAMEBUFFER[base] = 0x88;
     }
 
     /* Message log top divider: pixel row 80, full width */
     base = (unsigned int)80 << 6;
-    for (i = 0; i < 64; i++)
-        FRAMEBUFFER[base + i] = 0x88;
+    for (i = 0; i < 64; i++) FRAMEBUFFER[base + i] = 0x88;
 }
 
 /* ------------------------------------------------------------------ */
@@ -194,7 +450,6 @@ static void draw_ui(void) {
 static void update_camera(void) {
     if (px >= VIEW_W / 2) cam_x = px - VIEW_W / 2; else cam_x = 0;
     if ((unsigned char)(cam_x + VIEW_W) > MAP_W) cam_x = MAP_W - VIEW_W;
-
     if (py >= VIEW_H / 2) cam_y = py - VIEW_H / 2; else cam_y = 0;
     if ((unsigned char)(cam_y + VIEW_H) > MAP_H) cam_y = MAP_H - VIEW_H;
 }
@@ -203,11 +458,6 @@ static void update_camera(void) {
 /* Field of View                                                        */
 /* ------------------------------------------------------------------ */
 
-/*
- * Bresenham line-of-sight: returns 1 if (x1,y1) is visible from (x0,y0).
- * Walls block vision but are themselves visible (you see the wall face).
- * Uses 8-bit types throughout for speed on 6502.
- */
 static unsigned char has_los(unsigned char x0, unsigned char y0,
                                unsigned char x1, unsigned char y1) {
     unsigned char x, y, adx, ady;
@@ -218,24 +468,17 @@ static unsigned char has_los(unsigned char x0, unsigned char y0,
     else           { adx = x0 - x1; sx = -1; }
     if (y1 >= y0) { ady = y1 - y0; sy =  1; }
     else           { ady = y0 - y1; sy = -1; }
-    /* adx, ady ≤ FOV_R=8; err fits in signed char (-8..8) */
     err = (signed char)adx - (signed char)ady;
 
     for (;;) {
         if (x == x1 && y == y1) return 1;
-
-        /* Intermediate wall blocks vision (skip source tile) */
         if (!(x == x0 && y == y0) &&
             TILE_TYPE(MAP_AT(x, y)) == T_WALL) return 0;
-
-        /* e2 = 2*err; range -16..16 fits in signed char */
         e2 = (signed char)(err + err);
-        /* e2 > -ady  →  e2 + ady > 0 */
         if ((signed char)(e2 + (signed char)ady) > 0) {
             err = (signed char)(err - (signed char)ady);
             x   = (unsigned char)((int)x + sx);
         }
-        /* e2 < adx  →  adx - e2 > 0 */
         if ((signed char)((signed char)adx - e2) > 0) {
             err = (signed char)(err + (signed char)adx);
             y   = (unsigned char)((int)y + sy);
@@ -243,22 +486,17 @@ static unsigned char has_los(unsigned char x0, unsigned char y0,
     }
 }
 
-/* Recompute FOV from player position */
 static void compute_fov(void) {
     signed char   dx, dy;
     unsigned char adx_m, ady_m;
     int           tx, ty;
     unsigned int  i;
 
-    /* Clear F_VISIBLE on all tiles */
     for (i = 0; i < (unsigned int)(MAP_W * MAP_H); i++)
         map_data[i] &= (unsigned char)~F_VISIBLE;
 
-    /* Player tile always lit */
     MAP_AT(px, py) |= F_VISIBLE | F_EXPLORED;
 
-    /* Check every tile in the FOV_R square.
-     * Manhattan early-reject skips corners (~30% fewer has_los calls). */
     for (dy = -FOV_R; dy <= FOV_R; dy++) {
         ty    = (int)py + (int)dy;
         if (ty < 0 || ty >= MAP_H) continue;
@@ -267,7 +505,6 @@ static void compute_fov(void) {
             tx    = (int)px + (int)dx;
             if (tx < 0 || tx >= MAP_W) continue;
             adx_m = (dx < 0) ? (unsigned char)(-dx) : (unsigned char)dx;
-            /* skip corners well outside the FOV circle */
             if ((unsigned char)(adx_m + ady_m) > FOV_R + (FOV_R >> 1)) continue;
             if (has_los(px, py, (unsigned char)tx, (unsigned char)ty))
                 MAP_AT(tx, ty) |= F_VISIBLE | F_EXPLORED;
@@ -276,14 +513,13 @@ static void compute_fov(void) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Map generation — random rooms + L-shaped corridor connections        */
+/* Map generation                                                        */
 /* ------------------------------------------------------------------ */
 
 static unsigned char rooms_overlap(unsigned char rx, unsigned char ry,
                                     unsigned char rw, unsigned char rh) {
     unsigned char i;
     for (i = 0; i < num_rooms; i++) {
-        /* AABB overlap with 1-tile margin */
         if (!(rx + rw + 1 < room_rx[i] ||
               room_rx[i] + room_rw[i] + 1 < rx ||
               ry + rh + 1 < room_ry[i] ||
@@ -304,40 +540,31 @@ static void carve_h(unsigned char x1, unsigned char x2, unsigned char y) {
     unsigned char x, t;
     if (x1 > x2) { t = x1; x1 = x2; x2 = t; }
     for (x = x1; x <= x2; x++)
-        if (TILE_TYPE(MAP_AT(x, y)) == T_WALL)
-            MAP_AT(x, y) = T_FLOOR;
+        if (TILE_TYPE(MAP_AT(x, y)) == T_WALL) MAP_AT(x, y) = T_FLOOR;
 }
 
 static void carve_v(unsigned char x, unsigned char y1, unsigned char y2) {
     unsigned char y, t;
     if (y1 > y2) { t = y1; y1 = y2; y2 = t; }
     for (y = y1; y <= y2; y++)
-        if (TILE_TYPE(MAP_AT(x, y)) == T_WALL)
-            MAP_AT(x, y) = T_FLOOR;
+        if (TILE_TYPE(MAP_AT(x, y)) == T_WALL) MAP_AT(x, y) = T_FLOOR;
 }
 
 static void gen_map(void) {
-    unsigned char i, rw, rh, rx, ry;
-    unsigned char rangex, rangey;
+    unsigned char i, rw, rh, rx, ry, rangex, rangey;
     unsigned int  j;
 
-    /* Fill with walls */
-    for (j = 0; j < (unsigned int)(MAP_W * MAP_H); j++)
-        map_data[j] = T_WALL;
-
+    for (j = 0; j < (unsigned int)(MAP_W * MAP_H); j++) map_data[j] = T_WALL;
     num_rooms = 0;
 
-    /* Place rooms (up to 80 attempts) */
     for (i = 0; i < 80 && num_rooms < MAX_ROOMS; i++) {
-        rw     = 4 + (rand8() % 7);                          /* 4-10 wide */
-        rh     = 3 + (rand8() % 5);                          /* 3-7  tall */
+        rw     = 4 + (rand8() % 7);
+        rh     = 3 + (rand8() % 5);
         rangex = (unsigned char)(MAP_W - rw - 2);
         rangey = (unsigned char)(MAP_H - rh - 2);
         rx     = 1 + rand8() % rangex;
         ry     = 1 + rand8() % rangey;
-
         if (rooms_overlap(rx, ry, rw, rh)) continue;
-
         carve_room(rx, ry, rw, rh);
         room_rx[num_rooms] = rx;  room_ry[num_rooms] = ry;
         room_rw[num_rooms] = rw;  room_rh[num_rooms] = rh;
@@ -346,7 +573,6 @@ static void gen_map(void) {
         num_rooms++;
     }
 
-    /* Connect rooms with L-shaped corridors */
     for (i = 1; i < num_rooms; i++) {
         if (rand8() & 1) {
             carve_h(room_cx[i-1], room_cx[i], room_cy[i-1]);
@@ -356,21 +582,35 @@ static void gen_map(void) {
             carve_h(room_cx[i-1], room_cx[i],   room_cy[i]);
         }
     }
-
-    /* One extra corridor: last room back to first (creates loops) */
     if (num_rooms > 2) {
         carve_h(room_cx[num_rooms-1], room_cx[0], room_cy[num_rooms-1]);
         carve_v(room_cx[0], room_cy[num_rooms-1], room_cy[0]);
     }
 
-    /* Stairs */
     MAP_AT(room_cx[0], room_cy[0]) = T_STAIR_U;
     if (num_rooms > 1)
         MAP_AT(room_cx[num_rooms-1], room_cy[num_rooms-1]) = T_STAIR_D;
 
-    /* Player starts at upstairs */
     px = room_cx[0];
     py = room_cy[0];
+}
+
+/* ------------------------------------------------------------------ */
+/* New floor setup                                                       */
+/* ------------------------------------------------------------------ */
+
+static void enter_floor(void) {
+    unsigned int i;
+    /* Clear framebuffer */
+    for (i = 0; i < 6144; i++) FRAMEBUFFER[i] = 0;
+    gen_map();
+    update_camera();
+    compute_fov();
+    draw_ui();
+    draw_viewport();
+    draw_player();
+    draw_status_panel();
+    draw_messages();
 }
 
 /* ------------------------------------------------------------------ */
@@ -379,32 +619,51 @@ static void gen_map(void) {
 
 void main(void) {
     unsigned char k, nx, ny;
-    unsigned int  i;
 
     MODE_REG = 3;
 
-    /* Clear framebuffer */
-    for (i = 0; i < 6144; i++) FRAMEBUFFER[i] = 0;
+    /* Init player */
+    player_hp    = 20;
+    player_maxhp = 20;
+    player_str   = 4;
+    player_dex   = 4;
+    player_def   = 0;
+    player_level = 1;
+    player_xp    = 0;
+    player_gold  = 0;
+    player_wpn[0]='D'; player_wpn[1]='A'; player_wpn[2]='G'; player_wpn[3]='R'; player_wpn[4]=0;
+    player_arm[0]='N'; player_arm[1]='O'; player_arm[2]='N'; player_arm[3]='E'; player_arm[4]=0;
+
+    /* Init message buffers to spaces */
+    {
+        unsigned char i;
+        for (i = 0; i < MSG_CHARS; i++) { msg[0][i] = ' '; msg[1][i] = ' '; }
+        msg[0][MSG_CHARS] = msg[1][MSG_CHARS] = 0;
+    }
 
     depth = 1;
     rng   = 0xACE3;
 
-    /* Generate and display the first floor */
-    gen_map();
-    update_camera();
-    compute_fov();
-    draw_ui();
-    draw_viewport();
-    draw_player();
-
-    puts_scpu("\r\nDEPTHS  --  WASD to move\r\n");
+    enter_floor();
+    add_message((const unsigned char *)"WELCOME TO DEPTHS. WASD MOVE > DESCEND");
 
     while (1) {
         waitvsync();
-
         k = pollkey();
         if (!k) continue;
 
+        /* — Stairs — */
+        if (k == '>') {
+            if (TILE_TYPE(MAP_AT(px, py)) == T_STAIR_D) {
+                depth++;
+                rng ^= (unsigned int)depth << 5;    /* stir RNG */
+                enter_floor();
+                add_message((const unsigned char *)"YOU DESCEND DEEPER INTO THE DARK.");
+            }
+            continue;
+        }
+
+        /* — Movement — */
         nx = px; ny = py;
         if      (k == 'w') ny--;
         else if (k == 's') ny++;
@@ -412,7 +671,6 @@ void main(void) {
         else if (k == 'd') nx++;
         else continue;
 
-        /* Bounds + wall check (unsigned wrap handles ny-- at 0) */
         if (nx >= MAP_W || ny >= MAP_H) continue;
         if (TILE_TYPE(MAP_AT(nx, ny)) == T_WALL) continue;
 
