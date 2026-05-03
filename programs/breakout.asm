@@ -1,6 +1,6 @@
 ; breakout.asm — Breakout for simpleCPU
 ; Mode 3: 128×96, 16 colors, 4bpp
-; Controls: a = left, d = right
+; Controls: mouse or a/d keys
 ; Load at $0400
 
 .segment "CODE"
@@ -297,21 +297,38 @@ reset_ball:
     STA BALL_DY
     RTS
 
-; --- Handle input (keyboard: a/d) ---
+; --- Handle input (mouse + keyboard a/d) ---
 handle_input:
+    ; Try mouse first
+    LDA MOUSE_X
+    BEQ @keyboard          ; no mouse data, try keyboard
+
+    ; Center paddle on mouse: paddle_x = mouse_x - PADDLE_W/2
+    SEC
+    SBC #(PADDLE_W / 2 + 1)
+    BCS @mclamp_lo
+    LDA #0
+@mclamp_lo:
+    CMP #(SCREEN_W - PADDLE_W)
+    BCC @mclamp_hi
+    LDA #(SCREEN_W - PADDLE_W)
+@mclamp_hi:
+    JMP @update
+
+@keyboard:
     ; Drain all pending keys, keep last direction
-    LDX #0               ; 0 = no input
+    LDX #0
 @poll:
     LDA IO_STATUS
     AND #$80
-    BEQ @act             ; no more keys
+    BEQ @act
     LDA IO_DATA
-    AND #$7F             ; strip Apple I strobe bit
+    AND #$7F
     TAX
     JMP @poll
 @act:
     CPX #0
-    BEQ @done            ; no input this frame
+    BEQ @done
 
     CPX #$61             ; 'a'
     BEQ @left

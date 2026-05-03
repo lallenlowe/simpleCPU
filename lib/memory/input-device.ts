@@ -99,7 +99,8 @@ const pollStdin = (device: InputDevice): void => {
 
       if (device.escBuf.length > 0) {
         device.escBuf.push(b);
-        if (b >= 0x40 && b <= 0x7e) {
+        // CSI final byte is 0x40-0x7E, but only after the introducer (ESC [ ...)
+        if (device.escBuf.length > 2 && b >= 0x40 && b <= 0x7e) {
           parseEscSequence(device);
           device.escBuf = [];
         }
