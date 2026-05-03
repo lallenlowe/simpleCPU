@@ -135,10 +135,15 @@ const run = async (machineState: MachineState): Promise<void> => {
     }
   }
 
-  process.removeListener('SIGINT', onSigInt);
+  const elapsed = Number(process.hrtime.bigint() - runStartTime) / 1e9;
+  const mhz = (clockTicks / elapsed) / 1e6;
+
   syncSharedMemory(state.systemMemory);
   await Promise.all([stopGraphics(), stopSound()]);
   teardownStdin(state.inputDevice);
+  process.removeListener('SIGINT', onSigInt);
+
+  process.stderr.write(`\n${clockTicks} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
 };
 
 /* ##################################################################### */
@@ -181,10 +186,6 @@ const start = async () => {
   startSound(systemMemory.shared.buffer as SharedArrayBuffer);
   await new Promise((resolve) => setImmediate(resolve));
   await run({ cpuRegisters, mainBus, systemMemory, inputDevice });
-
-  const elapsed = Number(process.hrtime.bigint() - runStartTime) / 1e9;
-  const mhz = (clockTicks / elapsed) / 1e6;
-  process.stderr.write(`\n${clockTicks} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
 };
 
 export { start };
