@@ -7,6 +7,9 @@ import { palette } from './palette';
 const MODE_REGISTER = 0xfe04;
 const VSYNC_REGISTER = 0xfe05;
 const FRAMEBUFFER_START = 0x8000;
+const SPRITE_PATTERNS = 0x7e00;
+const SPRITE_REGS = 0xfe20;
+const NUM_SPRITES = 8;
 const FPS = 60;
 
 const data = new Uint8Array(workerData.buffer as SharedArrayBuffer);
@@ -60,6 +63,36 @@ const mode4: ModeConfig = {
 };
 
 const modes: Record<number, ModeConfig> = { 1: mode1, 2: mode2, 3: mode3, 4: mode4 };
+
+type Sprite = { x: number; y: number; pattern: number; color: number };
+
+const getSprites = (): Sprite[] => {
+  const sprites: Sprite[] = [];
+  for (let i = 0; i < NUM_SPRITES; i++) {
+    const base = SPRITE_REGS + i * 4;
+    const color = data[base + 3];
+    if (color === 0) continue;
+    sprites.push({
+      x: data[base],
+      y: data[base + 1],
+      pattern: data[base + 2],
+      color,
+    });
+  }
+  return sprites;
+};
+
+const spritePixelAt = (sprites: Sprite[], px: number, py: number): number | null => {
+  for (let i = sprites.length - 1; i >= 0; i--) {
+    const s = sprites[i];
+    const dx = px - s.x;
+    const dy = py - s.y;
+    if (dx < 0 || dx >= 8 || dy < 0 || dy >= 8) continue;
+    const row = data[SPRITE_PATTERNS + s.pattern * 8 + dy];
+    if (row & (0x80 >> dx)) return s.color;
+  }
+  return null;
+};
 
 let termCols = (workerData.cols as number) || 80;
 let termRows = (workerData.rows as number) || 24;
@@ -141,6 +174,13 @@ const render = () => {
   const scaledH = height * scale;
   const lines: string[] = [];
   const pad = offsetX > 0 ? `\x1b[${offsetX}C` : '';
+  const sprites = getSprites();
+
+  const getPixelWithSprites = (x: number, y: number): [number, number, number] => {
+    const spriteColor = spritePixelAt(sprites, x, y);
+    if (spriteColor !== null) return palette[spriteColor];
+    return config.getPixel(x, y);
+  };
 
   for (let row = 0; row < scaledH; row += 2) {
     const srcTopRow = Math.floor(row / scale);
@@ -149,9 +189,9 @@ const render = () => {
 
     for (let col = 0; col < width * scale; col++) {
       const srcCol = Math.floor(col / scale);
-      const [tr, tg, tb] = config.getPixel(srcCol, srcTopRow);
+      const [tr, tg, tb] = getPixelWithSprites(srcCol, srcTopRow);
       const [br, bg, bb] = (row + 1 < scaledH)
-        ? config.getPixel(srcCol, srcBotRow)
+        ? getPixelWithSprites(srcCol, srcBotRow)
         : [tr, tg, tb];
 
       line += `\x1b[38;2;${tr};${tg};${tb};48;2;${br};${bg};${bb}m\u2580`;

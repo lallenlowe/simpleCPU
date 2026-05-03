@@ -81,22 +81,27 @@ const cycle = (machineState: MachineState): MachineState => {
   return { cpuRegisters, mainBus, systemMemory, inputDevice: machineState.inputDevice };
 };
 
-const FRAMEBUFFER_START = 0x8000;
+const SPRITE_PATTERNS_START = 0x7e00;
 const FRAMEBUFFER_END = 0xc000;
 const MODE_REGISTER = 0xfe04;
 const VSYNC_REGISTER = 0xfe05;
 const SOUND_START = 0xfe06;
 const SOUND_END = 0xfe14;
+const SPRITE_REG_START = 0xfe20;
+const SPRITE_REG_END = 0xfe40;
 const SYNC_INTERVAL = 50_000;
 
 const syncSharedMemory = (memory: Memory) => {
   memory.data[VSYNC_REGISTER] = memory.shared[VSYNC_REGISTER];
-  for (let i = FRAMEBUFFER_START; i < FRAMEBUFFER_END; i++) {
+  for (let i = SPRITE_PATTERNS_START; i < FRAMEBUFFER_END; i++) {
     memory.shared[i] = memory.data[i] ?? 0;
   }
   memory.shared[MODE_REGISTER] = memory.data[MODE_REGISTER] ?? 0;
   memory.shared[VSYNC_REGISTER] = memory.data[VSYNC_REGISTER] ?? 0;
   for (let i = SOUND_START; i < SOUND_END; i++) {
+    memory.shared[i] = memory.data[i] ?? 0;
+  }
+  for (let i = SPRITE_REG_START; i < SPRITE_REG_END; i++) {
     memory.shared[i] = memory.data[i] ?? 0;
   }
 };

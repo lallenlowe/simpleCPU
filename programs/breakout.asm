@@ -16,6 +16,23 @@ CH1_WAVEFORM = $FE08
 CH1_VOLUME   = $FE09
 MOUSE_X      = $FE14
 
+; Sprite registers: 4 bytes each (X, Y, pattern, color)
+SPR0_X       = $FE20
+SPR0_Y       = $FE21
+SPR0_PAT     = $FE22
+SPR0_COL     = $FE23
+SPR1_X       = $FE24
+SPR1_Y       = $FE25
+SPR1_PAT     = $FE26
+SPR1_COL     = $FE27
+SPR2_X       = $FE28
+SPR2_Y       = $FE29
+SPR2_PAT     = $FE2A
+SPR2_COL     = $FE2B
+
+; Sprite pattern table
+SPR_PATTERNS = $7E00
+
 ; --- Zero page ---
 BALL_X       = $E0
 BALL_Y       = $E1
@@ -46,10 +63,13 @@ PADDLE_W     = 16
 PADDLE_SPD   = 4
 BRICK_COLS   = 16
 BRICK_ROWS   = 5
-BRICK_TOP    = 10       ; first brick row y
+BRICK_TOP    = 10
 BRICK_H      = 4
 SCREEN_W     = 128
 SCREEN_H     = 96
+PAT_BALL     = 0        ; pattern index for ball
+PAT_PADDLE_L = 1        ; pattern index for left paddle half
+PAT_PADDLE_R = 2        ; pattern index for right paddle half
 
 ; Brick storage
 BRICKS       = $0300
@@ -86,6 +106,7 @@ start:
     LDA #3
     STA LIVES
 
+    JSR init_sprites
     JSR init_bricks
     JSR clear_screen
     JSR draw_all_bricks
@@ -93,14 +114,10 @@ start:
     LDA #56              ; (128-16)/2
     STA PADDLE_X
     STA OLD_PADDLE
-    LDA #COL_PADDLE
-    STA COLOR
-    JSR draw_paddle_rect
+    JSR update_paddle_sprites
 
     JSR reset_ball
-    LDA #COL_BALL
-    STA COLOR
-    JSR draw_ball
+    JSR update_ball_sprite
 
 ; ============================================================
 ; GAME LOOP
@@ -121,15 +138,6 @@ game_loop:
 @no_snd:
 
     JSR handle_input
-
-    ; Save & erase ball
-    LDA BALL_X
-    STA OLD_BALL_X
-    LDA BALL_Y
-    STA OLD_BALL_Y
-    LDA #COL_BG
-    STA COLOR
-    JSR draw_ball
 
     ; --- Move X ---
     LDA BALL_X
@@ -207,10 +215,7 @@ game_loop:
     LDA BRICKS_LEFT
     BEQ game_won
 
-    ; Draw ball
-    LDA #COL_BALL
-    STA COLOR
-    JSR draw_ball
+    JSR update_ball_sprite
 
     JMP game_loop
 
@@ -227,9 +232,7 @@ ball_lost:
     JSR wait_frames
 
     JSR reset_ball
-    LDA #COL_BALL
-    STA COLOR
-    JSR draw_ball
+    JSR update_ball_sprite
     JMP game_loop
 
 ; ============================================================
@@ -272,6 +275,86 @@ game_won:
 ; ============================================================
 ; SUBROUTINES
 ; ============================================================
+
+; --- Init sprite patterns ---
+init_sprites:
+    ; Pattern 0: ball (2x2 block in top-left of 8x8)
+    LDA #%11000000
+    STA SPR_PATTERNS + (PAT_BALL * 8) + 0
+    STA SPR_PATTERNS + (PAT_BALL * 8) + 1
+    LDA #0
+    STA SPR_PATTERNS + (PAT_BALL * 8) + 2
+    STA SPR_PATTERNS + (PAT_BALL * 8) + 3
+    STA SPR_PATTERNS + (PAT_BALL * 8) + 4
+    STA SPR_PATTERNS + (PAT_BALL * 8) + 5
+    STA SPR_PATTERNS + (PAT_BALL * 8) + 6
+    STA SPR_PATTERNS + (PAT_BALL * 8) + 7
+
+    ; Pattern 1: paddle left half (8x2 solid block)
+    LDA #%11111111
+    STA SPR_PATTERNS + (PAT_PADDLE_L * 8) + 0
+    STA SPR_PATTERNS + (PAT_PADDLE_L * 8) + 1
+    LDA #0
+    STA SPR_PATTERNS + (PAT_PADDLE_L * 8) + 2
+    STA SPR_PATTERNS + (PAT_PADDLE_L * 8) + 3
+    STA SPR_PATTERNS + (PAT_PADDLE_L * 8) + 4
+    STA SPR_PATTERNS + (PAT_PADDLE_L * 8) + 5
+    STA SPR_PATTERNS + (PAT_PADDLE_L * 8) + 6
+    STA SPR_PATTERNS + (PAT_PADDLE_L * 8) + 7
+
+    ; Pattern 2: paddle right half (same as left)
+    LDA #%11111111
+    STA SPR_PATTERNS + (PAT_PADDLE_R * 8) + 0
+    STA SPR_PATTERNS + (PAT_PADDLE_R * 8) + 1
+    LDA #0
+    STA SPR_PATTERNS + (PAT_PADDLE_R * 8) + 2
+    STA SPR_PATTERNS + (PAT_PADDLE_R * 8) + 3
+    STA SPR_PATTERNS + (PAT_PADDLE_R * 8) + 4
+    STA SPR_PATTERNS + (PAT_PADDLE_R * 8) + 5
+    STA SPR_PATTERNS + (PAT_PADDLE_R * 8) + 6
+    STA SPR_PATTERNS + (PAT_PADDLE_R * 8) + 7
+
+    ; Disable all sprites initially
+    LDA #0
+    STA SPR0_COL
+    STA SPR1_COL
+    STA SPR2_COL
+    RTS
+
+; --- Update ball sprite (sprite 0) ---
+update_ball_sprite:
+    LDA BALL_X
+    STA SPR0_X
+    LDA BALL_Y
+    STA SPR0_Y
+    LDA #PAT_BALL
+    STA SPR0_PAT
+    LDA #COL_BALL
+    STA SPR0_COL
+    RTS
+
+; --- Update paddle sprites (sprites 1-2) ---
+update_paddle_sprites:
+    LDA PADDLE_X
+    STA SPR1_X
+    LDA #PADDLE_Y
+    STA SPR1_Y
+    LDA #PAT_PADDLE_L
+    STA SPR1_PAT
+    LDA #COL_PADDLE
+    STA SPR1_COL
+
+    LDA PADDLE_X
+    CLC
+    ADC #8
+    STA SPR2_X
+    LDA #PADDLE_Y
+    STA SPR2_Y
+    LDA #PAT_PADDLE_R
+    STA SPR2_PAT
+    LDA #COL_PADDLE
+    STA SPR2_COL
+    RTS
 
 ; --- Init all bricks alive ---
 init_bricks:
@@ -364,114 +447,12 @@ handle_input:
     LDX PADDLE_X
     STX OLD_PADDLE
     STA PADDLE_X
-    JSR redraw_paddle
+    JSR update_paddle_sprites
 
 @done:
     RTS
 
-; --- Redraw paddle ---
-redraw_paddle:
-    ; Erase old
-    LDA PADDLE_X
-    PHA
-    LDA OLD_PADDLE
-    STA PADDLE_X
-    LDA #COL_BG
-    STA COLOR
-    JSR draw_paddle_rect
-    PLA
-    STA PADDLE_X
-    ; Draw new
-    LDA #COL_PADDLE
-    STA COLOR
-    JSR draw_paddle_rect
-    RTS
 
-; --- Draw paddle rect at PADDLE_X ---
-draw_paddle_rect:
-    LDA #PADDLE_Y
-    STA PLOT_Y
-    LDX #2               ; 2 rows tall
-@pr:
-    LDA PLOT_Y
-    JSR calc_fb_addr
-    LDA PADDLE_X
-    LSR
-    CLC
-    ADC FB_LO
-    STA FB_LO
-    BCC @pnc
-    INC FB_HI
-@pnc:
-    LDA COLOR
-    ASL
-    ASL
-    ASL
-    ASL
-    ORA COLOR
-    LDY #0
-@pw: STA (FB_LO),Y
-    INY
-    CPY #(PADDLE_W / 2)   ; 8 bytes
-    BNE @pw
-    INC PLOT_Y
-    DEX
-    BNE @pr
-    RTS
-
-; --- Draw ball 2×2 at BALL_X, BALL_Y ---
-draw_ball:
-    LDA BALL_X
-    STA PLOT_X
-    LDA BALL_Y
-    STA PLOT_Y
-    JSR plot_pixel
-    INC PLOT_X
-    JSR plot_pixel
-    LDA BALL_X
-    STA PLOT_X
-    INC PLOT_Y
-    JSR plot_pixel
-    INC PLOT_X
-    JSR plot_pixel
-    RTS
-
-; --- Plot pixel at PLOT_X, PLOT_Y with COLOR ---
-plot_pixel:
-    LDA PLOT_Y
-    JSR calc_fb_addr
-    LDA PLOT_X
-    LSR
-    CLC
-    ADC FB_LO
-    STA FB_LO
-    BCC @pnc
-    INC FB_HI
-@pnc:
-    LDA PLOT_X
-    AND #1
-    BNE @odd
-    ; Even: high nibble
-    LDY #0
-    LDA (FB_LO),Y
-    AND #$0F
-    STA TEMP
-    LDA COLOR
-    ASL
-    ASL
-    ASL
-    ASL
-    ORA TEMP
-    STA (FB_LO),Y
-    RTS
-@odd:
-    ; Odd: low nibble
-    LDY #0
-    LDA (FB_LO),Y
-    AND #$F0
-    ORA COLOR
-    STA (FB_LO),Y
-    RTS
 
 ; --- Calc framebuffer row address ---
 ; A = pixel Y → FB_LO/FB_HI
