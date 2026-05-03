@@ -994,6 +994,8 @@ static void use_from_inv(unsigned char idx){
     }
 }
 
+static void drop_item(unsigned char idx);   /* forward declaration */
+
 /* Show inventory — takes over the map area */
 static void show_inventory(void) {
     unsigned char i, by, k;
@@ -1026,8 +1028,8 @@ static void show_inventory(void) {
                 draw_str(8,by,"   ----             ",8);
             }
         }
-        draw_str(0,by,"LETTER=USE/EQUIP",8);
-        draw_str(0,(unsigned char)(by+8),"I OR ESC=CLOSE  ",8);
+        draw_str(0,by,"a-h=USE/EQUIP   ",8);
+        draw_str(0,(unsigned char)(by+8),"A-H=DROP I=CLOSE",8);
 
         waitvsync();
         k=pollkey();
@@ -1039,7 +1041,7 @@ static void show_inventory(void) {
         }
         if(k>='A'&&k<='H'){
             unsigned char idx=k-'A';
-            if(idx<inv_count){use_from_inv(idx);break;}
+            if(idx<inv_count){drop_item(idx);break;}
         }
     }
     /* Restore viewport */
@@ -1069,6 +1071,20 @@ static void pickup_item(void) {
         add_message(fmt_buf);
         snd_pickup();
     }
+}
+
+static void drop_item(unsigned char idx) {
+    unsigned char fi;
+    if(item_at(px,py)<255){add_message((const unsigned char*)"NO ROOM TO DROP HERE.");return;}
+    for(fi=0;fi<MAX_FLOOR_ITEMS;fi++) if(floor_items[fi].cat==IC_NONE)break;
+    if(fi>=MAX_FLOOR_ITEMS){add_message((const unsigned char*)"FLOOR IS FULL.");return;}
+    floor_items[fi].cat=inventory[idx].cat;
+    floor_items[fi].sub=inventory[idx].sub;
+    floor_items[fi].x=px; floor_items[fi].y=py;
+    fmt_reset();fmt_str("YOU DROP ");fmt_item_name(floor_items[fi].cat,floor_items[fi].sub);fmt_chr('.');
+    inv_remove(idx);
+    redraw_tile(px,py);
+    add_message(fmt_buf);
 }
 
 /* Auto-pick up gold when stepping on it */
