@@ -30,7 +30,7 @@ IOSTATUS        = $FE02         ; Input status ($80=data ready, 0=not ready)
 IOREAD          = $FE03         ; Input data (read character)
 IOWRITE         = $FE01         ; Output character
 
-                * = $0200
+                .org $0200
 
 RESET:          CLD             ; Clear decimal arithmetic mode.
                 CLI

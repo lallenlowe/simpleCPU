@@ -8,6 +8,7 @@ import * as alu from './alu';
 import { MachineState, clearBus, interfaceAllRegisters } from './bus';
 import { createInputDevice, setupStdin, teardownStdin, checkInterrupt } from './memory/input-device';
 import { startGraphics, stopGraphics } from './graphics';
+import * as path from 'path';
 
 const opcodeNames: Map<number, string> = new Map(
   Object.entries(instructionMap).map(([name, opcode]) => [opcode, name]),
@@ -122,10 +123,10 @@ const parseOrg = (args: string[]): number => {
   return parseInt(args[orgIndex + 1], 16);
 };
 
-const parseRom = (args: string[]): string | null => {
+const parseRom = (args: string[]): string => {
   const idx = args.indexOf('--rom');
-  if (idx === -1 || idx + 1 >= args.length) return null;
-  return args[idx + 1];
+  if (idx !== -1 && idx + 1 < args.length) return args[idx + 1];
+  return path.join(__dirname, '..', '..', 'programs', 'ehbasic.bin');
 };
 
 const start = () => {
@@ -137,21 +138,17 @@ const start = () => {
     if (arg === '--org' || arg === '--rom') { skipNext = true; return false; }
     return !skipArgs.has(arg);
   });
-  if (!binFile) {
-    console.error('Usage: simplecpu <file.bin> [--org XXXX] [--rom <rom.bin>] [--debug]');
-    process.exit(1);
-  }
 
-  const loadAddress = parseOrg(process.argv);
   const romFile = parseRom(process.argv);
+  const loadAddress = binFile ? parseOrg(process.argv) : 0xC000;
   const cpuRegisters = setupCpuRegisters();
   cpuRegisters.pc = loadAddress;
   const mainBus = setupBus();
   let systemMemory = setupMemory();
-  if (romFile) {
-    systemMemory = loadBinFileToMemory(systemMemory, romFile, 0xC000);
+  systemMemory = loadBinFileToMemory(systemMemory, romFile, 0xC000);
+  if (binFile) {
+    systemMemory = loadBinFileToMemory(systemMemory, binFile, loadAddress);
   }
-  systemMemory = loadBinFileToMemory(systemMemory, binFile, loadAddress);
   const inputDevice = createInputDevice();
   setupStdin(inputDevice);
   startGraphics(systemMemory.data);
