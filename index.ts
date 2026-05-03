@@ -2,4 +2,4 @@
 
 import { start } from './lib';
 
-start();
+start().catch(() => process.exit(1));

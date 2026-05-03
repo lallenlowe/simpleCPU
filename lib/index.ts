@@ -144,7 +144,7 @@ const parseRom = (args: string[]): string => {
   return path.join(__dirname, '..', '..', 'programs', 'ehbasic.bin');
 };
 
-const start = () => {
+const start = async () => {
   debugMode = process.argv.includes('--debug');
   const skipArgs = new Set(['--debug', '--org', '--rom']);
   let skipNext = false;
@@ -167,6 +167,7 @@ const start = () => {
   const inputDevice = createInputDevice();
   setupStdin(inputDevice);
   startGraphics(systemMemory.shared.buffer as SharedArrayBuffer);
+  await new Promise((resolve) => setImmediate(resolve));
   run({ cpuRegisters, mainBus, systemMemory, inputDevice });
 
   const elapsed = Number(process.hrtime.bigint() - runStartTime) / 1e9;
