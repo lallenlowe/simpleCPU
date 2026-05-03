@@ -37,6 +37,7 @@ type CpuRegisters = {
 type Memory = {
   addressRegister: number;
   data: number[];
+  shared: Uint8Array;
 };
 
 const setupBus = (): Bus => {
@@ -74,16 +75,12 @@ const setupCpuRegisters = (): CpuRegisters => {
 };
 
 const setupMemory = (): Memory => {
-  // put a command and some data in memory for now for testing.
-  const mem = {
-    addressRegister: 0b0000000000000000,
-    //data: [0xad, 0xff, 0x00, 0x02, 0xa9, 0x05, 0x02, 0x69, 0x01, 0xea, 0x02, 0x8d, 0xff, 0x00],
-    // data: [0xa9, 0x01, 0x69, 0x01, 0x01],
+  const sharedBuffer = new SharedArrayBuffer(65536);
+  return {
+    addressRegister: 0,
     data: [],
+    shared: new Uint8Array(sharedBuffer),
   };
-  //mem.data[0x00ff] = 0x09;
-
-  return mem;
 };
 
 const DEFAULT_LOAD_ADDRESS = 0x0200;

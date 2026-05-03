@@ -1,6 +1,6 @@
 'use strict';
 
-import { setupBus, setupCpuRegisters, setupMemory, loadBinFileToMemory, DEFAULT_LOAD_ADDRESS } from './initial-state';
+import { setupBus, setupCpuRegisters, setupMemory, loadBinFileToMemory, DEFAULT_LOAD_ADDRESS, Memory } from './initial-state';
 import { instructionMap } from './control';
 import { incrementProgramCounter, incrementInstructionCounter } from './register';
 import { setImmediateFlags, getControlWord } from './control';
@@ -80,7 +80,20 @@ const cycle = (machineState: MachineState): MachineState => {
   return { cpuRegisters, mainBus, systemMemory, inputDevice: machineState.inputDevice };
 };
 
+const FRAMEBUFFER_START = 0x8000;
+const FRAMEBUFFER_END = 0xc000;
+const MODE_REGISTER = 0xfe04;
+const VSYNC_REGISTER = 0xfe05;
 const CYCLES_PER_BATCH = 50_000;
+
+const syncSharedMemory = (memory: Memory) => {
+  for (let i = FRAMEBUFFER_START; i < FRAMEBUFFER_END; i++) {
+    memory.shared[i] = memory.data[i] ?? 0;
+  }
+  memory.shared[MODE_REGISTER] = memory.data[MODE_REGISTER] ?? 0;
+  memory.shared[VSYNC_REGISTER] = memory.data[VSYNC_REGISTER] ?? 0;
+  memory.data[VSYNC_REGISTER] = memory.shared[VSYNC_REGISTER];
+};
 
 let totalCycles = 0;
 let runStartTime = BigInt(0);
@@ -109,6 +122,7 @@ const run = (machineState: MachineState): void => {
       teardownStdin(state.inputDevice);
       return;
     }
+    syncSharedMemory(state.systemMemory);
     setImmediate(batch);
   };
 
@@ -151,7 +165,7 @@ const start = () => {
   }
   const inputDevice = createInputDevice();
   setupStdin(inputDevice);
-  startGraphics(systemMemory.data);
+  startGraphics(systemMemory.shared.buffer as SharedArrayBuffer);
 
   process.on('SIGINT', () => {
     stopGraphics();
