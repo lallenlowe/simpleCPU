@@ -26,12 +26,15 @@ const startGraphics = (buffer: SharedArrayBuffer) => {
   process.on('SIGWINCH', onResize);
 };
 
-const stopGraphics = () => {
+const stopGraphics = (): Promise<void> => {
   process.removeListener('SIGWINCH', onResize);
-  if (worker) {
-    worker.postMessage({ type: 'stop' });
-    worker = null;
-  }
+  if (!worker) return Promise.resolve();
+  const w = worker;
+  worker = null;
+  return new Promise((resolve) => {
+    w.on('exit', () => resolve());
+    w.postMessage({ type: 'stop' });
+  });
 };
 
 export { startGraphics, stopGraphics };

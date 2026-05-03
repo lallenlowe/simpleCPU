@@ -98,7 +98,7 @@ const syncSharedMemory = (memory: Memory) => {
 let clockTicks = 0;
 let runStartTime = BigInt(0);
 
-const run = (machineState: MachineState): void => {
+const run = async (machineState: MachineState): Promise<void> => {
   let state = machineState;
   clockTicks = 0;
   let running = true;
@@ -126,7 +126,7 @@ const run = (machineState: MachineState): void => {
 
   process.removeListener('SIGINT', onSigInt);
   syncSharedMemory(state.systemMemory);
-  stopGraphics();
+  await stopGraphics();
   teardownStdin(state.inputDevice);
 };
 
@@ -168,7 +168,7 @@ const start = async () => {
   setupStdin(inputDevice);
   startGraphics(systemMemory.shared.buffer as SharedArrayBuffer);
   await new Promise((resolve) => setImmediate(resolve));
-  run({ cpuRegisters, mainBus, systemMemory, inputDevice });
+  await run({ cpuRegisters, mainBus, systemMemory, inputDevice });
 
   const elapsed = Number(process.hrtime.bigint() - runStartTime) / 1e9;
   const mhz = (clockTicks / elapsed) / 1e6;
