@@ -84,7 +84,7 @@ const FRAMEBUFFER_START = 0x8000;
 const FRAMEBUFFER_END = 0xc000;
 const MODE_REGISTER = 0xfe04;
 const VSYNC_REGISTER = 0xfe05;
-const CYCLES_PER_BATCH = 50_000;
+const SYNC_INTERVAL = 50_000;
 
 const syncSharedMemory = (memory: Memory) => {
   for (let i = FRAMEBUFFER_START; i < FRAMEBUFFER_END; i++) {
@@ -101,32 +101,33 @@ let runStartTime = BigInt(0);
 const run = (machineState: MachineState): void => {
   let state = machineState;
   totalCycles = 0;
+  let running = true;
   runStartTime = process.hrtime.bigint();
 
-  const batch = () => {
-    for (let i = 0; i < CYCLES_PER_BATCH; i++) {
-      const controlWord = getControlWord(state.cpuRegisters);
-      state = cycle(state);
-      totalCycles++;
-      if (controlWord.ht) {
-        const elapsed = Number(process.hrtime.bigint() - runStartTime) / 1e9;
-        const mhz = (totalCycles / elapsed) / 1e6;
-        process.stderr.write(`\n${totalCycles} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
-        stopGraphics();
-        teardownStdin(state.inputDevice);
-        return;
+  const onSigInt = () => { running = false; };
+  process.on('SIGINT', onSigInt);
+
+  while (running) {
+    const controlWord = getControlWord(state.cpuRegisters);
+    state = cycle(state);
+    totalCycles++;
+
+    if (controlWord.ht) {
+      break;
+    }
+
+    if (totalCycles % SYNC_INTERVAL === 0) {
+      syncSharedMemory(state.systemMemory);
+      if (checkInterrupt(state.inputDevice)) {
+        break;
       }
     }
-    if (checkInterrupt(state.inputDevice)) {
-      stopGraphics();
-      teardownStdin(state.inputDevice);
-      return;
-    }
-    syncSharedMemory(state.systemMemory);
-    setImmediate(batch);
-  };
+  }
 
-  batch();
+  process.removeListener('SIGINT', onSigInt);
+  syncSharedMemory(state.systemMemory);
+  stopGraphics();
+  teardownStdin(state.inputDevice);
 };
 
 /* ##################################################################### */
@@ -166,22 +167,11 @@ const start = () => {
   const inputDevice = createInputDevice();
   setupStdin(inputDevice);
   startGraphics(systemMemory.shared.buffer as SharedArrayBuffer);
-
-  process.on('SIGINT', () => {
-    stopGraphics();
-    teardownStdin(inputDevice);
-    process.exit(0);
-  });
-
-  process.on('exit', () => {
-    if (totalCycles > 0) {
-      const elapsed = Number(process.hrtime.bigint() - runStartTime) / 1e9;
-      const mhz = (totalCycles / elapsed) / 1e6;
-      process.stderr.write(`\n${totalCycles} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
-    }
-  });
-
   run({ cpuRegisters, mainBus, systemMemory, inputDevice });
+
+  const elapsed = Number(process.hrtime.bigint() - runStartTime) / 1e9;
+  const mhz = (totalCycles / elapsed) / 1e6;
+  process.stderr.write(`\n${totalCycles} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
 };
 
 export { start };
