@@ -95,12 +95,12 @@ const syncSharedMemory = (memory: Memory) => {
   memory.data[VSYNC_REGISTER] = memory.shared[VSYNC_REGISTER];
 };
 
-let totalCycles = 0;
+let clockTicks = 0;
 let runStartTime = BigInt(0);
 
 const run = (machineState: MachineState): void => {
   let state = machineState;
-  totalCycles = 0;
+  clockTicks = 0;
   let running = true;
   runStartTime = process.hrtime.bigint();
 
@@ -110,13 +110,13 @@ const run = (machineState: MachineState): void => {
   while (running) {
     const controlWord = getControlWord(state.cpuRegisters);
     state = cycle(state);
-    totalCycles++;
+    clockTicks++;
 
     if (controlWord.ht) {
       break;
     }
 
-    if (totalCycles % SYNC_INTERVAL === 0) {
+    if (clockTicks % SYNC_INTERVAL === 0) {
       syncSharedMemory(state.systemMemory);
       if (checkInterrupt(state.inputDevice)) {
         break;
@@ -170,8 +170,8 @@ const start = () => {
   run({ cpuRegisters, mainBus, systemMemory, inputDevice });
 
   const elapsed = Number(process.hrtime.bigint() - runStartTime) / 1e9;
-  const mhz = (totalCycles / elapsed) / 1e6;
-  process.stderr.write(`\n${totalCycles} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
+  const mhz = (clockTicks / elapsed) / 1e6;
+  process.stderr.write(`\n${clockTicks} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
 };
 
 export { start };
