@@ -31,7 +31,18 @@ const mode2: ModeConfig = {
   },
 };
 
-const modes: Record<number, ModeConfig> = { 1: mode1, 2: mode2 };
+const mode3: ModeConfig = {
+  width: 128,
+  height: 96,
+  getPixel: (data, x, y) => {
+    const byteOffset = y * 64 + (x >> 1);
+    const byte = data[FRAMEBUFFER_START + byteOffset] ?? 0;
+    const idx = (x & 1) ? (byte & 0x0f) : (byte >> 4);
+    return palette[idx];
+  },
+};
+
+const modes: Record<number, ModeConfig> = { 1: mode1, 2: mode2, 3: mode3 };
 
 let timer: ReturnType<typeof setInterval> | null = null;
 let memoryData: number[] = [];

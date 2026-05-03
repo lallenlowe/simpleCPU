@@ -56,6 +56,7 @@ cat programs/lander.bas | node dist/index.js programs/a1basic.bin --org E000
 | `bounce.bin` | `$0400` | Bouncing ball with vsync (assembly) | `node dist/index.js programs/bounce.bin --org 0400` |
 | `gfxtest.bin` | `$0400` | Color gradient (assembly) | `node dist/index.js programs/gfxtest.bin --org 0400` |
 | `gfxtest2.bin` | `$0400` | Mode 2 vertical stripes (assembly) | `node dist/index.js programs/gfxtest2.bin --org 0400` |
+| `gfxtest3.bin` | `$0400` | Mode 3 color bars (assembly) | `node dist/index.js programs/gfxtest3.bin --org 0400` |
 | `startrek.bas` | — | Super Star Trek (EhBASIC) | `(printf "C\n\n"; cat programs/startrek.bas) \| node dist/index.js` |
 | `bounce.bas` | — | Bouncing ball (EhBASIC) | `(printf "C\n\n"; cat programs/bounce.bas) \| node dist/index.js` |
 | `gfxtest.bas` | — | Color gradient (EhBASIC) | `(printf "C\n\n"; cat programs/gfxtest.bas) \| node dist/index.js` |
@@ -83,11 +84,12 @@ The simulator includes a terminal-based graphics chip using half-block character
 
 ### Graphics modes
 
-| Mode | Resolution | Colors | Framebuffer size | Terminal size |
-|------|-----------|--------|-----------------|---------------|
-| 0 | Text only | — | — | Any |
-| 1 | 64×48 | 256 (8-bit) | 3,072 bytes | 64×24 |
-| 2 | 256×192 | 2 (1-bit) | 6,144 bytes | 256×96 |
+| Mode | Resolution | Colors | Bit depth | Framebuffer size | Terminal size |
+|------|-----------|--------|-----------|-----------------|---------------|
+| 0 | Text only | — | — | — | Any |
+| 1 | 64×48 | 256 | 8bpp | 3,072 bytes | 64×24 |
+| 2 | 256×192 | 2 | 1bpp | 6,144 bytes | 256×96 |
+| 3 | 128×96 | 16 | 4bpp | 6,144 bytes | 128×48 |
 
 Enable a mode by writing to the mode register: `POKE 65028,1` (mode 1) or `STA $FE04` in assembly.
 
@@ -193,7 +195,7 @@ The simulator runs at approximately 1.5 MHz on modern hardware (reported on exit
 
 ## TODO
 
-- [ ] More graphics modes (128×96 4bpp, 128×128 8bpp)
+- [ ] Mode 4: 128×128, 256 colors, 8bpp (16 KB framebuffer)
 - [ ] Double buffering for flicker-free BASIC graphics
 - [ ] Interrupt system (IRQ, NMI, authentic BRK behavior, RTI instruction)
 - [ ] Snapshot / restore (dump full 64KB + CPU registers to a file)
