@@ -1,87 +1,63 @@
 'use strict';
 
-import { Byte } from '../initial-state';
+const and = (a: number, b: number) => a & b;
 
-const and = (a: boolean, b: boolean) => {
-  return a && b;
+const or = (a: number, b: number) => a | b;
+
+const xor = (a: number, b: number) => a ^ b;
+
+const fullAdder = (a: number, b: number, c: number) => ({
+  s: a ^ b ^ c,
+  c: (a & b) | ((a ^ b) & c),
+});
+
+const bit = (v: number, n: number) => (v >> n) & 1;
+
+const byteAdder = (a: number, b: number, c: number) => {
+  const r0 = fullAdder(bit(a, 0), bit(b, 0), c);
+  const r1 = fullAdder(bit(a, 1), bit(b, 1), r0.c);
+  const r2 = fullAdder(bit(a, 2), bit(b, 2), r1.c);
+  const r3 = fullAdder(bit(a, 3), bit(b, 3), r2.c);
+  const r4 = fullAdder(bit(a, 4), bit(b, 4), r3.c);
+  const r5 = fullAdder(bit(a, 5), bit(b, 5), r4.c);
+  const r6 = fullAdder(bit(a, 6), bit(b, 6), r5.c);
+  const r7 = fullAdder(bit(a, 7), bit(b, 7), r6.c);
+
+  const sum = r0.s | (r1.s << 1) | (r2.s << 2) | (r3.s << 3) |
+              (r4.s << 4) | (r5.s << 5) | (r6.s << 6) | (r7.s << 7);
+
+  const overflow = xor(r6.c, r7.c);
+
+  return { sum, carry: r7.c, overflow };
 };
 
-const or = (a: boolean, b: boolean) => {
-  return a || b;
-};
+const byteAnd = (a: number, b: number) => a & b;
 
-const xor = (a: boolean, b: boolean) => {
-  if (and(a, b)) {
-    return false;
-  }
-  if (or(a, b)) {
-    return true;
-  }
-  return false;
-};
+const byteOr = (a: number, b: number) => a | b;
 
-const fullAdder = (a: boolean, b: boolean, c: boolean) => {
-  return {
-    c: or(and(xor(a, b), c), and(a, b)), // carry
-    s: xor(xor(a, b), c), // sum
-  };
-};
+const byteXor = (a: number, b: number) => a ^ b;
 
-const byteAdder = (a: Byte, b: Byte, c: boolean) => {
-  const { c: c1, s: s0 } = fullAdder(a[7], b[7], c);
-  const { c: c2, s: s1 } = fullAdder(a[6], b[6], c1);
-  const { c: c3, s: s2 } = fullAdder(a[5], b[5], c2);
-  const { c: c4, s: s3 } = fullAdder(a[4], b[4], c3);
-  const { c: c5, s: s4 } = fullAdder(a[3], b[3], c4);
-  const { c: c6, s: s5 } = fullAdder(a[2], b[2], c5);
-  const { c: c7, s: s6 } = fullAdder(a[1], b[1], c6);
-  const { c: carry, s: s7 } = fullAdder(a[0], b[0], c7);
+const byteNot = (a: number) => (~a) & 0xFF;
 
-  const sum: Byte = [s7, s6, s5, s4, s3, s2, s1, s0];
-  const overflow = xor(c7, carry);
+const byteShiftLeft = (a: number) => ({
+  result: (a << 1) & 0xFF,
+  carry: bit(a, 7),
+});
 
-  return { sum, carry, overflow };
-};
+const byteShiftRight = (a: number) => ({
+  result: (a >> 1) & 0x7F,
+  carry: bit(a, 0),
+});
 
-const byteAnd = (a: Byte, b: Byte): Byte => {
-  return a.map((bit, i) => and(bit, b[i]));
-};
+const byteRotateLeft = (a: number, carry: number) => ({
+  result: ((a << 1) | carry) & 0xFF,
+  carry: bit(a, 7),
+});
 
-const byteOr = (a: Byte, b: Byte): Byte => {
-  return a.map((bit, i) => or(bit, b[i]));
-};
-
-const byteXor = (a: Byte, b: Byte): Byte => {
-  return a.map((bit, i) => xor(bit, b[i]));
-};
-
-const byteNot = (a: Byte): Byte => {
-  return a.map((bit) => !bit);
-};
-
-const byteShiftLeft = (a: Byte): { result: Byte; carry: boolean } => {
-  const carry = a[0];
-  const result: Byte = [...a.slice(1), false];
-  return { result, carry };
-};
-
-const byteShiftRight = (a: Byte): { result: Byte; carry: boolean } => {
-  const carry = a[7];
-  const result: Byte = [false, ...a.slice(0, 7)];
-  return { result, carry };
-};
-
-const byteRotateLeft = (a: Byte, carry: boolean): { result: Byte; carry: boolean } => {
-  const newCarry = a[0];
-  const result: Byte = [...a.slice(1), carry];
-  return { result, carry: newCarry };
-};
-
-const byteRotateRight = (a: Byte, carry: boolean): { result: Byte; carry: boolean } => {
-  const newCarry = a[7];
-  const result: Byte = [carry, ...a.slice(0, 7)];
-  return { result, carry: newCarry };
-};
+const byteRotateRight = (a: number, carry: number) => ({
+  result: ((a >> 1) | (carry << 7)) & 0xFF,
+  carry: bit(a, 0),
+});
 
 export {
   and, or, xor, fullAdder, byteAdder,

@@ -1571,6 +1571,7 @@ const instructions: { [key: number]: { [key: string]: MicroInstructions } } = {
   },
   [instructionMap.PHP]: {
     0: [
+      Object.assign({ ...baseControl }, { if: [{ flag: 'B', value: true }] }),
       Object.assign({ ...baseControl }, { spo: true, mi: true, sto: true, ri: true, spd: true }),
     ],
   },
@@ -1594,13 +1595,10 @@ const setImmediateFlags = ({
 }: {
   controlWord: ControlWord;
   cpuRegisters: CpuRegisters;
-}): CpuRegisters => {
-  const newCpuRegisters = { ...cpuRegisters };
+}): void => {
   controlWord.if.forEach((flag) => {
-    newCpuRegisters.status[flag.flag] = flag.value;
+    cpuRegisters.status[flag.flag] = flag.value;
   });
-
-  return newCpuRegisters;
 };
 
 const getConditionalInstruction = (

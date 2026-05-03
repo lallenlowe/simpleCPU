@@ -9,6 +9,7 @@ type InputDevice = {
   fd: number;
   fdIsTty: boolean;
   switchedToTty: boolean;
+  ttyStream: any;
   mouseX: number;
   mouseY: number;
   mouseButtons: number;
@@ -16,7 +17,7 @@ type InputDevice = {
 };
 
 const createInputDevice = (): InputDevice => {
-  return { buffer: [], active: false, interrupted: false, fd: 0, fdIsTty: false, switchedToTty: false, mouseX: 0, mouseY: 0, mouseButtons: 0, escBuf: [] };
+  return { buffer: [], active: false, interrupted: false, fd: 0, fdIsTty: false, switchedToTty: false, ttyStream: null, mouseX: 0, mouseY: 0, mouseButtons: 0, escBuf: [] };
 };
 
 const setupStdin = (device: InputDevice): void => {
@@ -32,11 +33,19 @@ const setupStdin = (device: InputDevice): void => {
     device.fd = 0;
   }
   device.active = true;
+  if (device.fdIsTty) {
+    fs.writeSync(1, '\x1b[?1003h\x1b[?1006h');
+  }
 };
 
 const teardownStdin = (device: InputDevice): void => {
   if (!device.active) return;
   if (device.fdIsTty) {
+    fs.writeSync(1, '\x1b[?1003l\x1b[?1006l');
+  }
+  if (device.ttyStream) {
+    try { device.ttyStream.setRawMode(false); } catch { /* ignore */ }
+  } else if (process.stdin.isTTY) {
     process.stdin.setRawMode(false);
   }
   if (device.fd > 0) {
@@ -53,8 +62,8 @@ const switchToTty = (device: InputDevice): void => {
     device.fd = ttyFd;
     device.fdIsTty = true;
     device.switchedToTty = true;
-    const ttyStream = new (require('tty').ReadStream)(ttyFd);
-    ttyStream.setRawMode(true);
+    device.ttyStream = new (require('tty').ReadStream)(ttyFd);
+    device.ttyStream.setRawMode(true);
   } catch {
     // No tty available (e.g. CI). Stay in EOF state.
   }

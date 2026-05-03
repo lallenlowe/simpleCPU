@@ -4,3 +4,4 @@ dist/
 *.o
 *.dbg
 *.lst
+*.map

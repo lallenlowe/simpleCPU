@@ -4,10 +4,9 @@ import { CpuRegisters } from '../initial-state';
 import { ControlWord } from '../control';
 import { setStatusFlag } from '../register';
 import {
-  byteAdder, byteAnd, byteOr, byteXor, byteNot,
+  byteAdder, byteAnd, byteNot,
   byteShiftLeft, byteShiftRight, byteRotateLeft, byteRotateRight,
 } from './gates';
-import { byteToNumber, numberToByte } from '../common';
 
 const operate = ({
   registers,
@@ -15,234 +14,208 @@ const operate = ({
 }: {
   registers: CpuRegisters;
   controlWord: ControlWord;
-}): CpuRegisters => {
-  let newRegisters = add(registers, controlWord);
-  newRegisters = addressAdd(newRegisters, controlWord);
-  newRegisters = subtract(newRegisters, controlWord);
-  newRegisters = bitwiseAnd(newRegisters, controlWord);
-  newRegisters = bitwiseOr(newRegisters, controlWord);
-  newRegisters = bitwiseXor(newRegisters, controlWord);
-  newRegisters = shiftLeft(newRegisters, controlWord);
-  newRegisters = shiftRight(newRegisters, controlWord);
-  newRegisters = rotateLeft(newRegisters, controlWord);
-  newRegisters = rotateRight(newRegisters, controlWord);
-  newRegisters = decrement(newRegisters, controlWord);
-  newRegisters = bitTest(newRegisters, controlWord);
-  newRegisters = compare(newRegisters, controlWord);
-
-  return newRegisters;
+}): void => {
+  add(registers, controlWord);
+  addressAdd(registers, controlWord);
+  subtract(registers, controlWord);
+  bitwiseAnd(registers, controlWord);
+  bitwiseOr(registers, controlWord);
+  bitwiseXor(registers, controlWord);
+  shiftLeft(registers, controlWord);
+  shiftRight(registers, controlWord);
+  rotateLeft(registers, controlWord);
+  rotateRight(registers, controlWord);
+  decrement(registers, controlWord);
+  bitTest(registers, controlWord);
+  compare(registers, controlWord);
 };
 
-const add = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+const decimalAdjustAdd = (
+  a: number, b: number, carryIn: boolean,
+  binaryResult: number, binaryCarry: boolean, enabled: boolean,
+): { result: number; carry: boolean; intermediate: number } => {
+  if (!enabled) {
+    return { result: binaryResult, carry: binaryCarry, intermediate: binaryResult };
+  }
+
+  const c = carryIn ? 1 : 0;
+
+  let al = (a & 0x0F) + (b & 0x0F) + c;
+  if (al >= 0x0A) al = ((al + 0x06) & 0x0F) + 0x10;
+
+  let s = (a & 0xF0) + (b & 0xF0) + al;
+  const intermediate = s;
+
+  if ((s & 0x1F0) > 0x90) s += 0x60;
+
+  return { result: s & 0xFF, carry: s > 0xFF, intermediate };
+};
+
+const decimalAdjustSubtract = (
+  a: number, b: number, carryIn: boolean,
+  binaryResult: number, enabled: boolean,
+): number => {
+  if (!enabled) return binaryResult;
+
+  const c = carryIn ? 1 : 0;
+  let al = (a & 0x0F) - (b & 0x0F) - (1 - c);
+  if (al < 0) al = ((al - 0x06) & 0x0F) - 0x10;
+  let s = (a & 0xF0) - (b & 0xF0) + al;
+  if (s < 0) s -= 0x60;
+  return s & 0xFF;
+};
+
+const add = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.dE) {
-    let newRegisters: CpuRegisters = { ...registers };
+    const a = registers.aluA;
+    const b = registers.aluB;
+    const carryIn = registers.status['C'];
 
-    const { sum, carry, overflow } = byteAdder(
-      numberToByte(newRegisters.aluA),
-      numberToByte(newRegisters.aluB),
-      newRegisters.status['C'],
-    );
+    const { sum, carry } = byteAdder(a, b, carryIn ? 1 : 0);
 
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'C', value: carry });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'O', value: overflow });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'Z', value: byteToNumber(sum) === 0 });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'N', value: sum[0] });
-    newRegisters.s = byteToNumber(sum);
+    const adjusted = decimalAdjustAdd(a, b, carryIn, sum, !!carry, registers.status['D']);
 
-    return newRegisters;
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'C', value: adjusted.carry });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'O', value: !!((~(a ^ b) & (a ^ adjusted.intermediate)) & 0x80) });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'Z', value: sum === 0 });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'N', value: !!(adjusted.intermediate & 0x80) });
+    registers.s = adjusted.result;
   }
-
-  return registers;
 };
 
-const addressAdd = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+const addressAdd = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.dEa) {
-    const newRegisters: CpuRegisters = { ...registers };
-    const { sum, carry } = byteAdder(
-      numberToByte(newRegisters.aluA),
-      numberToByte(newRegisters.aluB),
-      false,
-    );
-    newRegisters.s = byteToNumber(sum);
-    newRegisters.addressCarry = carry;
-    return newRegisters;
+    const { sum, carry } = byteAdder(registers.aluA, registers.aluB, 0);
+    registers.s = sum;
+    registers.addressCarry = !!carry;
   }
-  return registers;
 };
 
-const subtract = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+const subtract = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.dS) {
-    let newRegisters: CpuRegisters = { ...registers };
+    const a = registers.aluA;
+    const b = registers.aluB;
+    const carryIn = registers.status['C'];
 
-    const { sum, carry, overflow } = byteAdder(
-      numberToByte(newRegisters.aluA),
-      byteNot(numberToByte(newRegisters.aluB)),
-      newRegisters.status['C'],
-    );
+    const { sum, carry, overflow } = byteAdder(a, byteNot(b), carryIn ? 1 : 0);
 
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'C', value: carry });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'O', value: overflow });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'Z', value: byteToNumber(sum) === 0 });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'N', value: sum[0] });
-    newRegisters.s = byteToNumber(sum);
+    const result = decimalAdjustSubtract(a, b, carryIn, sum, registers.status['D']);
 
-    return newRegisters;
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'C', value: !!carry });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'O', value: !!overflow });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'Z', value: sum === 0 });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'N', value: !!(sum & 0x80) });
+    registers.s = result;
   }
-  return registers;
 };
 
-const bitwiseAnd = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+const bitwiseAnd = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.dAnd) {
-    let newRegisters: CpuRegisters = { ...registers };
-    const result = byteAnd(numberToByte(newRegisters.aluA), numberToByte(newRegisters.aluB));
+    const result = byteAnd(registers.aluA, registers.aluB);
 
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'Z', value: byteToNumber(result) === 0 });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'N', value: result[0] });
-    newRegisters.s = byteToNumber(result);
-
-    return newRegisters;
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'Z', value: result === 0 });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'N', value: !!(result & 0x80) });
+    registers.s = result;
   }
-  return registers;
 };
 
-const bitwiseOr = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+const bitwiseOr = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.dOr) {
-    let newRegisters: CpuRegisters = { ...registers };
-    const result = byteOr(numberToByte(newRegisters.aluA), numberToByte(newRegisters.aluB));
+    const result = registers.aluA | registers.aluB;
 
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'Z', value: byteToNumber(result) === 0 });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'N', value: result[0] });
-    newRegisters.s = byteToNumber(result);
-
-    return newRegisters;
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'Z', value: result === 0 });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'N', value: !!(result & 0x80) });
+    registers.s = result;
   }
-  return registers;
 };
 
-const bitwiseXor = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+const bitwiseXor = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.dXor) {
-    let newRegisters: CpuRegisters = { ...registers };
-    const result = byteXor(numberToByte(newRegisters.aluA), numberToByte(newRegisters.aluB));
+    const result = registers.aluA ^ registers.aluB;
 
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'Z', value: byteToNumber(result) === 0 });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'N', value: result[0] });
-    newRegisters.s = byteToNumber(result);
-
-    return newRegisters;
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'Z', value: result === 0 });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'N', value: !!(result & 0x80) });
+    registers.s = result;
   }
-  return registers;
 };
 
-const shiftLeft = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+const shiftLeft = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.asl) {
-    let newRegisters: CpuRegisters = { ...registers };
-    const { result, carry } = byteShiftLeft(numberToByte(newRegisters.aluA));
+    const { result, carry } = byteShiftLeft(registers.aluA);
 
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'C', value: carry });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'Z', value: byteToNumber(result) === 0 });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'N', value: result[0] });
-    newRegisters.s = byteToNumber(result);
-
-    return newRegisters;
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'C', value: !!carry });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'Z', value: result === 0 });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'N', value: !!(result & 0x80) });
+    registers.s = result;
   }
-  return registers;
 };
 
-const shiftRight = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+const shiftRight = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.lsr) {
-    let newRegisters: CpuRegisters = { ...registers };
-    const { result, carry } = byteShiftRight(numberToByte(newRegisters.aluA));
+    const { result, carry } = byteShiftRight(registers.aluA);
 
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'C', value: carry });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'Z', value: byteToNumber(result) === 0 });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'N', value: result[0] });
-    newRegisters.s = byteToNumber(result);
-
-    return newRegisters;
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'C', value: !!carry });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'Z', value: result === 0 });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'N', value: !!(result & 0x80) });
+    registers.s = result;
   }
-  return registers;
 };
 
-const rotateLeft = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+const rotateLeft = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.rol) {
-    let newRegisters: CpuRegisters = { ...registers };
-    const { result, carry } = byteRotateLeft(numberToByte(newRegisters.aluA), newRegisters.status['C']);
+    const { result, carry } = byteRotateLeft(registers.aluA, registers.status['C'] ? 1 : 0);
 
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'C', value: carry });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'Z', value: byteToNumber(result) === 0 });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'N', value: result[0] });
-    newRegisters.s = byteToNumber(result);
-
-    return newRegisters;
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'C', value: !!carry });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'Z', value: result === 0 });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'N', value: !!(result & 0x80) });
+    registers.s = result;
   }
-  return registers;
 };
 
-const rotateRight = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+const rotateRight = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.ror) {
-    let newRegisters: CpuRegisters = { ...registers };
-    const { result, carry } = byteRotateRight(numberToByte(newRegisters.aluA), newRegisters.status['C']);
+    const { result, carry } = byteRotateRight(registers.aluA, registers.status['C'] ? 1 : 0);
 
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'C', value: carry });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'Z', value: byteToNumber(result) === 0 });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'N', value: result[0] });
-    newRegisters.s = byteToNumber(result);
-
-    return newRegisters;
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'C', value: !!carry });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'Z', value: result === 0 });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'N', value: !!(result & 0x80) });
+    registers.s = result;
   }
-  return registers;
 };
 
-const decrement = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+const decrement = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.dDec) {
-    const newRegisters: CpuRegisters = { ...registers };
-    const { sum } = byteAdder(
-      numberToByte(newRegisters.aluA),
-      byteNot(numberToByte(newRegisters.aluB)),
-      true,
-    );
-    newRegisters.s = byteToNumber(sum);
-    return newRegisters;
+    const { sum } = byteAdder(registers.aluA, byteNot(registers.aluB), 1);
+    registers.s = sum;
   }
-  return registers;
 };
 
-const bitTest = (registers: CpuRegisters, controlWord: ControlWord): CpuRegisters => {
+const bitTest = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.bit) {
-    let newRegisters: CpuRegisters = { ...registers };
-    const memByte = numberToByte(newRegisters.aluB);
-    const result = byteAnd(numberToByte(newRegisters.aluA), memByte);
+    const mem = registers.aluB;
+    const result = byteAnd(registers.aluA, mem);
 
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'Z', value: byteToNumber(result) === 0 });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'N', value: memByte[0] });
-    newRegisters = setStatusFlag({ cpuRegisters: newRegisters, flagsInput: controlWord.fi, flag: 'O', value: memByte[1] });
-
-    return newRegisters;
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'Z', value: result === 0 });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'N', value: !!(mem & 0x80) });
+    setStatusFlag({ cpuRegisters: registers, flagsInput: controlWord.fi, flag: 'O', value: !!(mem & 0x40) });
   }
-  return registers;
 };
 
-const compare = (registers: CpuRegisters, controlWord: ControlWord) => {
+const compare = (registers: CpuRegisters, controlWord: ControlWord): void => {
   if (controlWord.dc) {
-    let newRegisters: CpuRegisters = { ...registers };
-
-    newRegisters = setStatusFlag({
-      cpuRegisters: newRegisters, flagsInput: controlWord.fi,
+    setStatusFlag({
+      cpuRegisters: registers, flagsInput: controlWord.fi,
       flag: 'Z', value: registers.aluA === registers.aluB,
     });
-    newRegisters = setStatusFlag({
-      cpuRegisters: newRegisters, flagsInput: controlWord.fi,
+    setStatusFlag({
+      cpuRegisters: registers, flagsInput: controlWord.fi,
       flag: 'C', value: registers.aluA >= registers.aluB,
     });
-    newRegisters = setStatusFlag({
-      cpuRegisters: newRegisters, flagsInput: controlWord.fi,
+    setStatusFlag({
+      cpuRegisters: registers, flagsInput: controlWord.fi,
       flag: 'N', value: ((registers.aluA - registers.aluB) & 0x80) !== 0,
     });
-
-    return newRegisters;
   }
-
-  return registers;
 };
 
 export { operate };
