@@ -87,12 +87,12 @@ const VSYNC_REGISTER = 0xfe05;
 const SYNC_INTERVAL = 50_000;
 
 const syncSharedMemory = (memory: Memory) => {
+  memory.data[VSYNC_REGISTER] = memory.shared[VSYNC_REGISTER];
   for (let i = FRAMEBUFFER_START; i < FRAMEBUFFER_END; i++) {
     memory.shared[i] = memory.data[i] ?? 0;
   }
   memory.shared[MODE_REGISTER] = memory.data[MODE_REGISTER] ?? 0;
   memory.shared[VSYNC_REGISTER] = memory.data[VSYNC_REGISTER] ?? 0;
-  memory.data[VSYNC_REGISTER] = memory.shared[VSYNC_REGISTER];
 };
 
 let clockTicks = 0;
