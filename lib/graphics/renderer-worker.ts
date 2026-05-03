@@ -1,6 +1,7 @@
 'use strict';
 
 import { workerData, parentPort } from 'worker_threads';
+import { writeSync } from 'fs';
 import { palette } from './palette';
 
 const MODE_REGISTER = 0xfe04;
@@ -70,16 +71,18 @@ let prevFrame = '';
 let prevMode = 0;
 let prevVsyncUsed = false;
 
+const write = (s: string) => writeSync(1, s);
+
 const enterAltScreen = () => {
   if (inAltScreen) return;
-  process.stdout.write('\x1b[?1049h\x1b[?25l');
+  write('\x1b[?1049h\x1b[?25l');
   inAltScreen = true;
   prevFrame = '';
 };
 
 const leaveAltScreen = () => {
   if (!inAltScreen) return;
-  process.stdout.write('\x1b[?1049l\x1b[?25h');
+  write('\x1b[?1049l\x1b[?25h');
   inAltScreen = false;
 };
 
@@ -118,7 +121,7 @@ const render = () => {
   if (!inAltScreen) enterAltScreen();
 
   if (mode !== prevMode) {
-    process.stdout.write('\x1b[2J');
+    write('\x1b[2J');
     prevFrame = '';
     prevScale = 0;
     prevMode = mode;
@@ -128,7 +131,7 @@ const render = () => {
   const { scale, offsetX, offsetY } = getScale(width, height);
 
   if (scale !== prevScale || offsetX !== prevOffsetX || offsetY !== prevOffsetY) {
-    process.stdout.write('\x1b[2J');
+    write('\x1b[2J');
     prevFrame = '';
     prevScale = scale;
     prevOffsetX = offsetX;
@@ -166,7 +169,7 @@ const render = () => {
   for (let i = 0; i < lines.length; i++) {
     out += `\x1b[${offsetY + i + 1};1H${pad}${lines[i]}`;
   }
-  process.stdout.write(out);
+  write(out);
 
   if (prevVsyncUsed) {
     Atomics.store(data, VSYNC_REGISTER, 0);
@@ -179,7 +182,7 @@ parentPort?.on('message', (msg: { type: string; cols?: number; rows?: number }) 
   if (msg.type === 'stop') {
     clearInterval(timer);
     leaveAltScreen();
-    process.stdout.write('\x1b[?25h');
+    write('\x1b[?25h');
     process.exit(0);
   }
   if (msg.type === 'resize') {
