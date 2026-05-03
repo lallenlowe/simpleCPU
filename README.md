@@ -176,7 +176,7 @@ PC=$0202 STAA  A=$01 X=$00 Y=$00 SP=$ff [nobdizc]
 
 ## Performance
 
-The simulator runs at approximately 1.5 MHz on modern hardware (reported on exit). This is comparable to original 6502 machines like the Apple II (1.023 MHz) and BBC Micro (2 MHz).
+The simulator runs at approximately 2 MHz on modern hardware (reported on exit). This is comparable to original 6502 machines like the Apple II (1.023 MHz) and BBC Micro (2 MHz).
 
 ## What this project is NOT
 
@@ -201,7 +201,10 @@ The simulator runs at approximately 1.5 MHz on modern hardware (reported on exit
 ## TODO
 
 - [x] Mode 4: 128×128, 256 colors, 8bpp (16 KB framebuffer)
+- [ ] Sound chip — 3 tone channels (sine/square/sawtooth/triangle) + 1 noise channel, memory-mapped registers, running on its own worker thread like the graphics chip
 - [ ] Double buffering for flicker-free BASIC graphics
 - [ ] Interrupt system (IRQ, NMI, authentic BRK behavior, RTI instruction)
+- [ ] Bank switching for ROM/I/O overlay — I/O registers ($FE00+) currently sit inside the ROM region ($C000–$FFFF), handled implicitly; a proper bank-switching mechanism would make this explicit
 - [ ] Snapshot / restore (dump full 64KB + CPU registers to a file)
 - [ ] Tape I/O via memory-mapped ports
+- [ ] Programming manual — retro-style reference in the spirit of the BBC Micro User Guide, once features stabilize
