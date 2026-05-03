@@ -1,6 +1,7 @@
 'use strict';
 
 import * as fs from 'fs';
+import { writeSync } from 'fs';
 
 type InputDevice = {
   buffer: number[];
@@ -9,10 +10,14 @@ type InputDevice = {
   fd: number;
   fdIsTty: boolean;
   switchedToTty: boolean;
+  mouseX: number;
+  mouseY: number;
+  mouseButtons: number;
+  escBuf: number[];
 };
 
 const createInputDevice = (): InputDevice => {
-  return { buffer: [], active: false, interrupted: false, fd: 0, fdIsTty: false, switchedToTty: false };
+  return { buffer: [], active: false, interrupted: false, fd: 0, fdIsTty: false, switchedToTty: false, mouseX: 0, mouseY: 0, mouseButtons: 0, escBuf: [] };
 };
 
 const setupStdin = (device: InputDevice): void => {
@@ -24,6 +29,7 @@ const setupStdin = (device: InputDevice): void => {
     } catch {
       device.fd = 0;
     }
+    writeSync(1, '\x1b[?1003h\x1b[?1006h');
   } else {
     device.fd = 0;
   }
@@ -33,6 +39,7 @@ const setupStdin = (device: InputDevice): void => {
 const teardownStdin = (device: InputDevice): void => {
   if (!device.active) return;
   if (device.fdIsTty) {
+    writeSync(1, '\x1b[?1003l\x1b[?1006l');
     process.stdin.setRawMode(false);
   }
   if (device.fd > 0) {
@@ -56,21 +63,53 @@ const switchToTty = (device: InputDevice): void => {
   }
 };
 
+const parseEscSequence = (device: InputDevice): void => {
+  const seq = device.escBuf;
+  // SGR mouse: ESC [ < Cb ; Cx ; Cy M/m
+  if (seq.length >= 6 && seq[1] === 0x5b && seq[2] === 0x3c) {
+    const params = String.fromCharCode(...seq.slice(3, -1));
+    const parts = params.split(';');
+    if (parts.length === 3) {
+      device.mouseX = parseInt(parts[1]) || 0;
+      device.mouseY = parseInt(parts[2]) || 0;
+      const terminator = seq[seq.length - 1];
+      device.mouseButtons = terminator === 0x4d ? (parseInt(parts[0]) & 3) + 1 : 0;
+    }
+  }
+};
+
 const pollStdin = (device: InputDevice): void => {
   if (!device.active) return;
-  const buf = Buffer.alloc(64);
+  const buf = Buffer.alloc(256);
   try {
-    const bytesRead = fs.readSync(device.fd, buf, 0, 64, null);
+    const bytesRead = fs.readSync(device.fd, buf, 0, 256, null);
     if (bytesRead === 0) {
       switchToTty(device);
       return;
     }
     for (let i = 0; i < bytesRead; i++) {
-      if (buf[i] === 3) {
+      const b = buf[i];
+
+      if (b === 3) {
         device.interrupted = true;
         return;
       }
-      const byte = buf[i] === 0x0a ? 0x0d : buf[i];
+
+      if (b === 0x1b) {
+        device.escBuf = [0x1b];
+        continue;
+      }
+
+      if (device.escBuf.length > 0) {
+        device.escBuf.push(b);
+        if (b >= 0x40 && b <= 0x7e) {
+          parseEscSequence(device);
+          device.escBuf = [];
+        }
+        continue;
+      }
+
+      const byte = b === 0x0a ? 0x0d : b;
       device.buffer.push(byte);
     }
   } catch {
@@ -106,4 +145,8 @@ const checkInterrupt = (device: InputDevice): boolean => {
   return false;
 };
 
-export { InputDevice, createInputDevice, hasData, readByte, setupStdin, teardownStdin, checkInterrupt };
+const pollMouse = (device: InputDevice): void => {
+  pollStdin(device);
+};
+
+export { InputDevice, createInputDevice, hasData, readByte, pollMouse, setupStdin, teardownStdin, checkInterrupt };

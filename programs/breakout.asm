@@ -14,6 +14,7 @@ CH1_FREQ_LO  = $FE06
 CH1_FREQ_HI  = $FE07
 CH1_WAVEFORM = $FE08
 CH1_VOLUME   = $FE09
+MOUSE_X      = $FE14
 
 ; --- Zero page ---
 BALL_X       = $E0
@@ -38,7 +39,6 @@ BRICK_COL    = $F2
 BRICK_ROW    = $F3
 HIT_FLAG     = $F4
 CHECK_Y      = $F5
-PADDLE_DIR   = $F6      ; 0=stopped, 1=right, $FF=left
 
 ; --- Constants ---
 PADDLE_Y     = 90
@@ -97,9 +97,6 @@ start:
     STA COLOR
     JSR draw_paddle_rect
 
-    LDA #0
-    STA PADDLE_DIR
-
     JSR reset_ball
     LDA #COL_BALL
     STA COLOR
@@ -124,7 +121,6 @@ game_loop:
 @no_snd:
 
     JSR handle_input
-    JSR move_paddle
 
     ; Save & erase ball
     LDA BALL_X
@@ -301,68 +297,39 @@ reset_ball:
     STA BALL_DY
     RTS
 
-; --- Handle input (set direction) ---
+; --- Handle input (mouse) ---
 handle_input:
-    LDA IO_STATUS
-    AND #$80
-    BEQ @done
+    ; Read mouse X (terminal column, 1-based)
+    LDA MOUSE_X
+    BEQ @done              ; no mouse data yet
 
-    LDA IO_DATA
-    AND #$7F
-    CMP #$61             ; 'a' = move left
-    BEQ @left
-    CMP #$64             ; 'd' = move right
-    BEQ @right
-    CMP #$73             ; 's' = stop
-    BEQ @stop
-    JMP handle_input
-
-@left:
-    LDA #$FF
-    STA PADDLE_DIR
-    JMP handle_input
-@right:
-    LDA #1
-    STA PADDLE_DIR
-    JMP handle_input
-@stop:
-    LDA #0
-    STA PADDLE_DIR
-    JMP handle_input
-@done:
-    RTS
-
-; --- Move paddle based on direction ---
-move_paddle:
-    LDA PADDLE_DIR
-    BEQ @no_move
-
-    LDA PADDLE_X
-    STA OLD_PADDLE
-
-    LDA PADDLE_DIR
-    BMI @go_left
-
-    ; Move right
-    LDA PADDLE_X
-    CLC
-    ADC #PADDLE_SPD
-    CMP #(SCREEN_W - PADDLE_W)
-    BCC @store
-    LDA #(SCREEN_W - PADDLE_W)
-    JMP @store
-
-@go_left:
-    LDA PADDLE_X
+    ; Center paddle on mouse: paddle_x = mouse_x - PADDLE_W/2
     SEC
-    SBC #PADDLE_SPD
-    BCS @store
+    SBC #(PADDLE_W / 2 + 1) ; -1 for 1-based column
+    BCS @no_clamp_lo
     LDA #0
+@no_clamp_lo:
+    CMP #(SCREEN_W - PADDLE_W)
+    BCC @no_clamp_hi
+    LDA #(SCREEN_W - PADDLE_W)
+@no_clamp_hi:
+    CMP PADDLE_X
+    BEQ @done              ; no change
 
-@store:
+    ; Update paddle
+    LDX PADDLE_X
+    STX OLD_PADDLE
     STA PADDLE_X
     JSR redraw_paddle
-@no_move:
+
+@done:
+    ; Drain any keyboard input
+    LDA IO_STATUS
+    AND #$80
+    BEQ @no_keys
+    LDA IO_DATA
+    JMP @done
+@no_keys:
     RTS
 
 ; --- Redraw paddle ---
