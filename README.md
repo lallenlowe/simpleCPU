@@ -12,47 +12,126 @@ It is VERY loosely based on the classic 6502 Processor.
 - [Node.js >= 20](https://nodejs.org/en/download/)
 - Install deps: `npm i`
 - Build: `npm run build`
-- Assemble a program (see below)
-- Run: `node dist/index.js program.bin [--org HEX] [--debug]`
-- Lint: `npm run lint`
+- Run: `node dist/index.js`
 
-## Assembling and running
+This boots straight into EhBASIC (Enhanced 6502 BASIC). Type `PRINT 6*7` to verify it works.
 
-Any 6502 assembler works. The included programs in `programs/` use [cc65](https://cc65.github.io/) syntax. Install with `brew install cc65` on macOS.
-
-Assemble to a flat binary with `cl65 -t none -o program.bin program.s`. The source file's `.org` directive sets the load address — pass the matching `--org` flag when running.
+## Running Programs
 
 ```sh
-# Test program (loads at $0200, the default)
-cl65 -t none -o programs/test.bin programs/test.s
-node dist/index.js programs/test.bin
+# Boot into EhBASIC (no arguments needed)
+node dist/index.js
 
-# Woz Monitor (loads at $FF00)
-cl65 -t none -o programs/wozmon.bin programs/wozmon.s
-node dist/index.js programs/wozmon.bin --org FF00
+# Woz Monitor
+node dist/index.js programs/wozmon.bin
 
-# Apple 1 Integer BASIC (loads at $E000)
-cl65 -t none -o programs/a1basic.bin programs/a1basic.s
-node dist/index.js programs/a1basic.bin --org E000
+# Standalone assembly program (loads at $0400)
+node dist/index.js programs/bounce.bin --org 0400
+
+# Apple 1 Integer BASIC (loads at $E000, overrides default ROM)
+node dist/index.js programs/a1basic.bin --org E000 --rom none
 ```
 
-For Apple 1 BASIC, type things like `PRINT 6*7`, `10 PRINT "HI"`, `LIST`, `RUN`. Press Ctrl+C to exit.
+The EhBASIC ROM is always loaded at `$C000`–`$FFFF` by default. Standalone programs get access to ROM routines (graphics primitives, I/O) automatically. Use `--rom <file>` to override the default ROM, or `--org` to set the load address for your binary.
 
-You can also pipe a `.bas` text file in as keyboard input — the simulator translates LF to CR so unix line endings work, and re-opens `/dev/tty` after EOF so you can keep typing:
+### Piping BASIC programs
 
-```sh
-cat tic-tac-toe.bas | node dist/index.js programs/a1basic.bin --org E000
-```
-
-Sample BASIC games are included:
-
-- `programs/lander.bas` — Lunar Lander, pure integer arithmetic
-- `programs/tictac.bas` — two-player tic-tac-toe
+You can pipe a `.bas` file as keyboard input — the simulator translates LF to CR and re-opens `/dev/tty` after EOF so you can keep typing:
 
 ```sh
+# EhBASIC programs (pipe C for Cold start, blank line to skip memory size)
+(printf "C\n\n"; cat programs/startrek.bas) | node dist/index.js
+
+# Apple 1 BASIC programs
 cat programs/lander.bas | node dist/index.js programs/a1basic.bin --org E000
-cat programs/tictac.bas | node dist/index.js programs/a1basic.bin --org E000
 ```
+
+### Sample programs
+
+| Program | Description | How to run |
+|---------|-------------|------------|
+| `startrek.bas` | Super Star Trek (EhBASIC) | `(printf "C\n\n"; cat programs/startrek.bas) \| node dist/index.js` |
+| `lander.bas` | Lunar Lander (Apple 1 BASIC) | `cat programs/lander.bas \| node dist/index.js programs/a1basic.bin --org E000` |
+| `tictac.bas` | Tic-tac-toe (Apple 1 BASIC) | `cat programs/tictac.bas \| node dist/index.js programs/a1basic.bin --org E000` |
+| `bounce.bin` | Bouncing ball with vsync (assembly) | `node dist/index.js programs/bounce.bin --org 0400` |
+| `bounce.bas` | Bouncing ball (EhBASIC) | `(printf "C\n\n"; cat programs/bounce.bas) \| node dist/index.js` |
+| `gfxtest.bas` | Color gradient (EhBASIC) | `(printf "C\n\n"; cat programs/gfxtest.bas) \| node dist/index.js` |
+| `gfxtest2.bin` | Mode 2 vertical stripes (assembly) | `node dist/index.js programs/gfxtest2.bin --org 0400` |
+
+### Assembling programs
+
+The included programs use [cc65](https://cc65.github.io/) syntax. Install with `brew install cc65` on macOS.
+
+```sh
+# Standalone program at $0400
+ca65 --feature loose_string_term --feature labels_without_colons -o prog.o prog.asm
+ld65 -C programs/standalone.cfg -o prog.bin prog.o
+
+# Rebuild the EhBASIC ROM
+ca65 --feature loose_string_term --feature labels_without_colons -o ehbasic.o programs/ehbasic.asm
+ca65 --feature loose_string_term --feature labels_without_colons -o ehbasic_mon.o programs/ehbasic_mon.asm
+ld65 -C programs/ehbasic.cfg -o programs/ehbasic.bin ehbasic.o ehbasic_mon.o
+```
+
+## Graphics
+
+The simulator includes a terminal-based graphics chip using half-block characters (▀) with truecolor ANSI escape codes. Graphics are memory-mapped — the CPU communicates with the display purely through the memory map.
+
+### Graphics modes
+
+| Mode | Resolution | Colors | Framebuffer size | Terminal size |
+|------|-----------|--------|-----------------|---------------|
+| 0 | Text only | — | — | Any |
+| 1 | 64×48 | 256 (8-bit) | 3,072 bytes | 64×24 |
+| 2 | 256×192 | 2 (1-bit) | 6,144 bytes | 256×96 |
+
+Enable a mode by writing to the mode register: `POKE 65028,1` (mode 1) or `STA $FE04` in assembly.
+
+### Graphics primitives (ROM)
+
+The ROM includes drawing routines callable from BASIC via `CALL` or from assembly via `JSR`:
+
+| Primitive | Address | BASIC usage | Parameters (zero page) |
+|-----------|---------|-------------|----------------------|
+| CLG (clear) | 59598 ($E8CE) | `POKE 224,color : CALL 59598` | $E0=color |
+| PLOT (pixel) | 59623 ($E8E7) | `POKE 225,x : POKE 226,y : CALL 59623` | $E0=color, $E1=X, $E2=Y |
+| LINE (Bresenham) | 59675 ($E91B) | Set $E1-$E4, `CALL 59675` | $E0=color, $E1=X1, $E2=Y1, $E3=X2, $E4=Y2 |
+| FILL (circle) | 59802 ($E99A) | `POKE 229,r : CALL 59802` | $E0=color, $E1=X, $E2=Y, $E5=radius |
+
+### Vsync
+
+Programs can synchronize with the display by writing 1 to the vsync register (`$FE05`) after completing a frame, then busy-waiting until the renderer clears it to 0. If a program never writes to vsync, the renderer runs freely at ~30 FPS.
+
+```asm
+; Assembly vsync
+LDA #1
+STA $FE05
+@wait: LDA $FE05
+       BNE @wait
+```
+
+### Color palette
+
+Mode 1 uses a 256-color palette: 16 CGA primaries (0–15), a 6×6×6 color cube (16–231), and a 24-step grayscale ramp (232–255).
+
+## Memory Map
+
+| Address | Description |
+|---------|-------------|
+| `$0000`–`$00FF` | Zero page (fast access) |
+| `$0100`–`$01FF` | Stack (SP initialized to `$FF`) |
+| `$0200`–`$03FF` | System / input buffers |
+| `$0400`–`$7FFF` | User RAM |
+| `$8000`–`$BFFF` | Framebuffer (16 KB) |
+| `$C000`–`$FFFF` | ROM (EhBASIC + monitor + graphics primitives) |
+| `$FE00` | I/O: decimal number + newline |
+| `$FE01` | I/O: ASCII character output |
+| `$FE02` | I/O: input status (`$80` = data ready) |
+| `$FE03` | I/O: input data (read byte) |
+| `$FE04` | Graphics: mode register (0=text, 1=lo-res, 2=hi-res) |
+| `$FE05` | Graphics: vsync register |
+
+The default load address is `$0200`. Use `--org HEX` to load elsewhere.
 
 ## Supported Instructions
 
@@ -75,20 +154,6 @@ All 55 official 6502 instructions are implemented across all addressing modes (1
 
 **Addressing modes:** Implied, Immediate, Zero Page, Zero Page,X, Zero Page,Y, Absolute, Absolute,X, Absolute,Y, Indirect, (Indirect,X), (Indirect),Y
 
-## Memory Map
-
-| Address | Description |
-|---------|-------------|
-| $0000–$00FF | Zero page (fast access) |
-| $0100–$01FF | Stack (SP initialized to $FF) |
-| $0200+ | Program code (load address) |
-| $FE00 | Output: decimal number + newline |
-| $FE01 | Output: ASCII character |
-| $FE02 | Input: status (1 = data ready) |
-| $FE03 | Input: read byte (clears status) |
-
-The default load address is `$0200`. Use `--org HEX` to load elsewhere (e.g. `--org E000` for Apple 1 BASIC).
-
 ## Debug Mode
 
 Pass `--debug` to log PC, opcode, registers, and status flags to stderr at each instruction boundary:
@@ -97,6 +162,10 @@ Pass `--debug` to log PC, opcode, registers, and status flags to stderr at each 
 PC=$0200 LDAI  A=$00 X=$00 Y=$00 SP=$ff [nobdizc]
 PC=$0202 STAA  A=$01 X=$00 Y=$00 SP=$ff [nobdizc]
 ```
+
+## Performance
+
+The simulator runs at approximately 1.5 MHz on modern hardware (reported on exit). This is comparable to original 6502 machines like the Apple II (1.023 MHz) and BBC Micro (2 MHz).
 
 ## What this project is NOT
 
@@ -115,23 +184,13 @@ PC=$0202 STAA  A=$01 X=$00 Y=$00 SP=$ff [nobdizc]
 2. ✔ Practice thinking in functional
 3. ✔ Practicing Typescript
 4. ✔ Run 6502 binaries (near-complete instruction set)
+5. ✔ Run EhBASIC and real BASIC programs (Star Trek!)
+6. ✔ Terminal-based graphics with memory-mapped I/O
 
 ## TODO
 
+- [ ] More graphics modes (128×96 4bpp, 128×128 8bpp)
+- [ ] Double buffering for flicker-free BASIC graphics
 - [ ] Interrupt system (IRQ, NMI, authentic BRK behavior, RTI instruction)
-  - BRK should push PC+2 and status to stack, load PC from vector at $FFFE/$FFFF
-  - RTI pops status then PC from stack
-  - Hardware interrupt lines (IRQ respects I flag, NMI is non-maskable)
-- [ ] Load multiple binaries at independent addresses (e.g. `--load wozmon.bin@FF00 --load demo.bin@0280 --start 0280`)
-  - Enables coexisting wozmon + BASIC like the real Apple 1
-  - Reset signal (key combo or `JMP ($FFFC)`) jumps to wozmon, `E2B3R` warm-starts BASIC with program intact
-  - Unlocks running preserved Apple 1 binaries (demos, games, monitors) at their native load addresses
-- [ ] Snapshot / restore (host-level, invisible to guest)
-  - Hotkey to dump full 64KB + CPU registers to a file, hotkey to restore
-  - `--snapshot file.bin` to boot from a snapshot, `--auto-snapshot` for periodic checkpoints
-  - Useful for debugging, time-travel, reproducible bug reports
-- [ ] Tape I/O via memory-mapped ports (authentic, guest-driven)
-  - MMIO data + control ports that stream bytes to/from a host file
-  - Lets BASIC programs be saved/restored from inside wozmon, or via a small assembly routine
-  - Pairs nicely with snapshots: checkpoint before a save, verify roundtrip
-  - Authentic flavor for software preservation — load original Apple 1 cassette images
+- [ ] Snapshot / restore (dump full 64KB + CPU registers to a file)
+- [ ] Tape I/O via memory-mapped ports
