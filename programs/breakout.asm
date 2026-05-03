@@ -297,39 +297,57 @@ reset_ball:
     STA BALL_DY
     RTS
 
-; --- Handle input (mouse) ---
+; --- Handle input (keyboard: a/d) ---
 handle_input:
-    ; Read mouse X (terminal column, 1-based)
-    LDA MOUSE_X
-    BEQ @done              ; no mouse data yet
+    ; Drain all pending keys, keep last direction
+    LDX #0               ; 0 = no input
+@poll:
+    LDA IO_STATUS
+    AND #$80
+    BEQ @act             ; no more keys
+    LDA IO_DATA
+    AND #$7F             ; strip Apple I strobe bit
+    TAX
+    JMP @poll
+@act:
+    CPX #0
+    BEQ @done            ; no input this frame
 
-    ; Center paddle on mouse: paddle_x = mouse_x - PADDLE_W/2
+    CPX #$61             ; 'a'
+    BEQ @left
+    CPX #$41             ; 'A'
+    BEQ @left
+    CPX #$64             ; 'd'
+    BEQ @right
+    CPX #$44             ; 'D'
+    BEQ @right
+    JMP @done
+
+@left:
+    LDA PADDLE_X
     SEC
-    SBC #(PADDLE_W / 2 + 1) ; -1 for 1-based column
-    BCS @no_clamp_lo
+    SBC #PADDLE_SPD
+    BCS @update
     LDA #0
-@no_clamp_lo:
-    CMP #(SCREEN_W - PADDLE_W)
-    BCC @no_clamp_hi
-    LDA #(SCREEN_W - PADDLE_W)
-@no_clamp_hi:
-    CMP PADDLE_X
-    BEQ @done              ; no change
+    JMP @update
 
-    ; Update paddle
+@right:
+    LDA PADDLE_X
+    CLC
+    ADC #PADDLE_SPD
+    CMP #(SCREEN_W - PADDLE_W)
+    BCC @update
+    LDA #(SCREEN_W - PADDLE_W)
+
+@update:
+    CMP PADDLE_X
+    BEQ @done
     LDX PADDLE_X
     STX OLD_PADDLE
     STA PADDLE_X
     JSR redraw_paddle
 
 @done:
-    ; Drain any keyboard input
-    LDA IO_STATUS
-    AND #$80
-    BEQ @no_keys
-    LDA IO_DATA
-    JMP @done
-@no_keys:
     RTS
 
 ; --- Redraw paddle ---
