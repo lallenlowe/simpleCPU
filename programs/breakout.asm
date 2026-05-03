@@ -303,6 +303,7 @@ handle_input:
     BEQ @done
 
     LDA IO_DATA
+    AND #$7F             ; strip Apple I strobe bit
     CMP #$61             ; 'a'
     BEQ @left
     CMP #$64             ; 'd'
