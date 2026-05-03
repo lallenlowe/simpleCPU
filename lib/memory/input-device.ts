@@ -128,19 +128,8 @@ const readByte = (device: InputDevice): number => {
 const checkInterrupt = (device: InputDevice): boolean => {
   if (device.interrupted) return true;
   if (!device.active) return false;
-  const buf = Buffer.alloc(64);
-  try {
-    const bytesRead = fs.readSync(device.fd, buf, 0, 64, null);
-    if (bytesRead === 0) return false;
-    for (let i = 0; i < bytesRead; i++) {
-      if (buf[i] === 3) { device.interrupted = true; return true; }
-      const byte = buf[i] === 0x0a ? 0x0d : buf[i];
-      device.buffer.push(byte);
-    }
-  } catch {
-    // EAGAIN
-  }
-  return false;
+  pollStdin(device);
+  return device.interrupted;
 };
 
 const pollMouse = (device: InputDevice): void => {
