@@ -148,9 +148,11 @@ draw_ball:
 @row_inbounds:
           ; check if row > cy + RADIUS
           SEC
-          SBC TMP2
+          SBC TMP2          ; A = row - cy (may wrap negative)
           CMP #(RADIUS+1)
-          BCC @not_past
+          BCC @not_past     ; < RADIUS+1, in range
+          CMP #$80
+          BCS @not_past     ; wrapped negative = row < cy, still in range
           JMP @done
 @not_past:
           ; dy = row - cy (signed, but we need absolute for distance)
@@ -193,6 +195,7 @@ draw_ball:
 @jmp_next_row:
           JMP @next_row
 @not_past_x:
+          STY $EF           ; save col before distance check
           ; Get |dx|
           CMP #$80
           BCC @dx_pos
@@ -201,8 +204,6 @@ draw_ball:
           ADC #1
 @dx_pos:
           ; A = |dx|, $EB = |dy|
-          ; Check dx*dx + dy*dy <= RADIUS*RADIUS
-          ; Use lookup? No, just multiply
           STA $ED           ; $ED = |dx|
           ; dx*dx
           LDA #0
@@ -232,7 +233,6 @@ draw_ball:
           ; --- Plot pixel at (Y=col, $EC=row) ---
           ; framebuffer byte = FB_START + row * 64 + col/2
           ; pixel is left nibble if col even, right if odd
-          STY $EF           ; save col
 
           ; Calculate row * 64
           ; row * 64 = row << 6

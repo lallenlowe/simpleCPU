@@ -57,9 +57,13 @@ cat programs/lander.bas | node dist/index.js programs/a1basic.bin --org E000
 | `gfxtest.bin` | `$0400` | Color gradient (assembly) | `node dist/index.js programs/gfxtest.bin --org 0400` |
 | `gfxtest2.bin` | `$0400` | Mode 2 vertical stripes (assembly) | `node dist/index.js programs/gfxtest2.bin --org 0400` |
 | `gfxtest3.bin` | `$0400` | Mode 3 color bars (assembly) | `node dist/index.js programs/gfxtest3.bin --org 0400` |
+| `gfxtest4.bin` | `$0400` | Mode 4 color bars (assembly) | `node dist/index.js programs/gfxtest4.bin --org 0400` |
+| `bounce3.bin` | `$0400` | Mode 3 bouncing ball (assembly) | `node dist/index.js programs/bounce3.bin --org 0400` |
 | `startrek.bas` | — | Super Star Trek (EhBASIC) | `(printf "C\n\n"; cat programs/startrek.bas) \| node dist/index.js` |
 | `bounce.bas` | — | Bouncing ball (EhBASIC) | `(printf "C\n\n"; cat programs/bounce.bas) \| node dist/index.js` |
 | `gfxtest.bas` | — | Color gradient (EhBASIC) | `(printf "C\n\n"; cat programs/gfxtest.bas) \| node dist/index.js` |
+| `colorbars3.bas` | — | Mode 3 color bars (EhBASIC) | `(printf "C\n\n"; cat programs/colorbars3.bas) \| node dist/index.js` |
+| `colorbars4.bas` | — | Mode 4 color bars (EhBASIC) | `(printf "C\n\n"; cat programs/colorbars4.bas) \| node dist/index.js` |
 | `lander.bas` | — | Lunar Lander (Apple 1 BASIC) | `cat programs/lander.bas \| node dist/index.js programs/a1basic.bin --org E000` |
 | `tictac.bas` | — | Tic-tac-toe (Apple 1 BASIC) | `cat programs/tictac.bas \| node dist/index.js programs/a1basic.bin --org E000` |
 
@@ -90,6 +94,7 @@ The simulator includes a terminal-based graphics chip using half-block character
 | 1 | 64×48 | 256 | 8bpp | 3,072 bytes | 64×24 |
 | 2 | 256×192 | 2 | 1bpp | 6,144 bytes | 256×96 |
 | 3 | 128×96 | 16 | 4bpp | 6,144 bytes | 128×48 |
+| 4 | 128×128 | 256 | 8bpp | 16,384 bytes | 128×64 |
 
 Enable a mode by writing to the mode register: `POKE 65028,1` (mode 1) or `STA $FE04` in assembly.
 
@@ -118,7 +123,7 @@ STA $FE05
 
 ### Color palette
 
-Mode 1 uses a 256-color palette: 16 CGA primaries (0–15), a 6×6×6 color cube (16–231), and a 24-step grayscale ramp (232–255).
+Modes 1, 3, and 4 share a 256-color palette: 16 CGA primaries (0–15), a 6×6×6 color cube (16–231), and a 24-step grayscale ramp (232–255). Mode 3 uses the first 16 entries; modes 1 and 4 use all 256.
 
 ## Memory Map
 
@@ -134,7 +139,7 @@ Mode 1 uses a 256-color palette: 16 CGA primaries (0–15), a 6×6×6 color cube
 | `$FE01` | I/O: ASCII character output |
 | `$FE02` | I/O: input status (`$80` = data ready) |
 | `$FE03` | I/O: input data (read byte) |
-| `$FE04` | Graphics: mode register (0=text, 1=lo-res, 2=hi-res) |
+| `$FE04` | Graphics: mode register (0=text, 1=64×48, 2=256×192, 3=128×96, 4=128×128) |
 | `$FE05` | Graphics: vsync register |
 
 The default load address is `$0200`. Use `--org HEX` to load elsewhere.
@@ -195,7 +200,7 @@ The simulator runs at approximately 1.5 MHz on modern hardware (reported on exit
 
 ## TODO
 
-- [ ] Mode 4: 128×128, 256 colors, 8bpp (16 KB framebuffer)
+- [x] Mode 4: 128×128, 256 colors, 8bpp (16 KB framebuffer)
 - [ ] Double buffering for flicker-free BASIC graphics
 - [ ] Interrupt system (IRQ, NMI, authentic BRK behavior, RTI instruction)
 - [ ] Snapshot / restore (dump full 64KB + CPU registers to a file)
