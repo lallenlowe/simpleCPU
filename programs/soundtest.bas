@@ -1,0 +1,20 @@
+10 REM Sound test - C major scale on channel 1
+20 REM Waveform: 1=square
+30 POKE 65032,1
+40 REM Volume
+50 POKE 65033,128
+60 REM C major scale frequencies
+70 DATA 262,294,330,349,392,440,494,523
+80 FOR I=1 TO 8
+90 READ F
+100 REM Store frequency as low/high byte
+110 LO=F-INT(F/256)*256
+120 HI=INT(F/256)
+130 POKE 65030,LO
+140 POKE 65031,HI
+150 REM Hold note briefly
+160 FOR D=1 TO 500:NEXT D
+170 NEXT I
+180 REM Silence
+190 POKE 65033,0
+200 PRINT "DONE"

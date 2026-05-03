@@ -64,6 +64,8 @@ cat programs/lander.bas | node dist/index.js programs/a1basic.bin --org E000
 | `gfxtest.bas` | — | Color gradient (EhBASIC) | `(printf "C\n\n"; cat programs/gfxtest.bas) \| node dist/index.js` |
 | `colorbars3.bas` | — | Mode 3 color bars (EhBASIC) | `(printf "C\n\n"; cat programs/colorbars3.bas) \| node dist/index.js` |
 | `colorbars4.bas` | — | Mode 4 color bars (EhBASIC) | `(printf "C\n\n"; cat programs/colorbars4.bas) \| node dist/index.js` |
+| `soundtest.bin` | `$0400` | C major scale (assembly) | `node dist/index.js programs/soundtest.bin --org 0400` |
+| `soundtest.bas` | — | C major scale (EhBASIC) | `(printf "C\n\n"; cat programs/soundtest.bas) \| node dist/index.js` |
 | `lander.bas` | — | Lunar Lander (Apple 1 BASIC) | `cat programs/lander.bas \| node dist/index.js programs/a1basic.bin --org E000` |
 | `tictac.bas` | — | Tic-tac-toe (Apple 1 BASIC) | `cat programs/tictac.bas \| node dist/index.js programs/a1basic.bin --org E000` |
 
@@ -121,6 +123,45 @@ STA $FE05
        BNE @wait
 ```
 
+## Sound
+
+The simulator includes a sound chip running on its own worker thread, using the Web Audio API. It provides 3 independent tone channels and 1 noise channel, all controlled through memory-mapped registers.
+
+### Sound registers
+
+| Address | Description |
+|---------|-------------|
+| `$FE06` | Channel 1 frequency (low byte) |
+| `$FE07` | Channel 1 frequency (high byte) |
+| `$FE08` | Channel 1 waveform (0=sine, 1=square, 2=sawtooth, 3=triangle) |
+| `$FE09` | Channel 1 volume (0–255, 0=silent) |
+| `$FE0A`–`$FE0D` | Channel 2 (same layout) |
+| `$FE0E`–`$FE11` | Channel 3 (same layout) |
+| `$FE12` | Noise channel rate (controls noise color) |
+| `$FE13` | Noise channel volume (0–255) |
+
+Frequency is a 16-bit value in Hz (e.g., 440 for concert A). Write 0 to a channel's volume to silence it.
+
+```asm
+; Play a 440 Hz square wave on channel 1
+LDA #1
+STA $FE08       ; square waveform
+LDA #128
+STA $FE09       ; half volume
+LDA #<440
+STA $FE06       ; freq low byte
+LDA #>440
+STA $FE07       ; freq high byte
+```
+
+```basic
+REM Play 440 Hz square wave
+POKE 65032,1:REM SQUARE WAVE
+POKE 65033,128:REM VOLUME
+POKE 65030,184:REM 440 LOW BYTE
+POKE 65031,1:REM 440 HIGH BYTE
+```
+
 ### Color palette
 
 Modes 1, 3, and 4 share a 256-color palette: 16 CGA primaries (0–15), a 6×6×6 color cube (16–231), and a 24-step grayscale ramp (232–255). Mode 3 uses the first 16 entries; modes 1 and 4 use all 256.
@@ -141,6 +182,11 @@ Modes 1, 3, and 4 share a 256-color palette: 16 CGA primaries (0–15), a 6×6×
 | `$FE03` | I/O: input data (read byte) |
 | `$FE04` | Graphics: mode register (0=text, 1=64×48, 2=256×192, 3=128×96, 4=128×128) |
 | `$FE05` | Graphics: vsync register |
+| `$FE06`–`$FE09` | Sound: channel 1 (freq lo/hi, waveform, volume) |
+| `$FE0A`–`$FE0D` | Sound: channel 2 |
+| `$FE0E`–`$FE11` | Sound: channel 3 |
+| `$FE12` | Sound: noise rate |
+| `$FE13` | Sound: noise volume |
 
 The default load address is `$0200`. Use `--org HEX` to load elsewhere.
 
@@ -201,7 +247,7 @@ The simulator runs at approximately 2 MHz on modern hardware (reported on exit).
 ## TODO
 
 - [x] Mode 4: 128×128, 256 colors, 8bpp (16 KB framebuffer)
-- [ ] Sound chip — 3 tone channels (sine/square/sawtooth/triangle) + 1 noise channel, memory-mapped registers, running on its own worker thread like the graphics chip
+- [x] Sound chip — 3 tone channels (sine/square/sawtooth/triangle) + 1 noise channel, memory-mapped registers, running on its own worker thread like the graphics chip
 - [ ] Double buffering for flicker-free BASIC graphics
 - [ ] Interrupt system (IRQ, NMI, authentic BRK behavior, RTI instruction)
 - [ ] Bank switching for ROM/I/O overlay — I/O registers ($FE00+) currently sit inside the ROM region ($C000–$FFFF), handled implicitly; a proper bank-switching mechanism would make this explicit

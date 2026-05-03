@@ -8,6 +8,7 @@ import * as alu from './alu';
 import { MachineState, clearBus, interfaceAllRegisters } from './bus';
 import { createInputDevice, setupStdin, teardownStdin, checkInterrupt } from './memory/input-device';
 import { startGraphics, stopGraphics } from './graphics';
+import { startSound, stopSound } from './sound';
 import * as path from 'path';
 
 const opcodeNames: Map<number, string> = new Map(
@@ -84,6 +85,8 @@ const FRAMEBUFFER_START = 0x8000;
 const FRAMEBUFFER_END = 0xc000;
 const MODE_REGISTER = 0xfe04;
 const VSYNC_REGISTER = 0xfe05;
+const SOUND_START = 0xfe06;
+const SOUND_END = 0xfe14;
 const SYNC_INTERVAL = 50_000;
 
 const syncSharedMemory = (memory: Memory) => {
@@ -93,6 +96,9 @@ const syncSharedMemory = (memory: Memory) => {
   }
   memory.shared[MODE_REGISTER] = memory.data[MODE_REGISTER] ?? 0;
   memory.shared[VSYNC_REGISTER] = memory.data[VSYNC_REGISTER] ?? 0;
+  for (let i = SOUND_START; i < SOUND_END; i++) {
+    memory.shared[i] = memory.data[i] ?? 0;
+  }
 };
 
 let clockTicks = 0;
@@ -126,7 +132,7 @@ const run = async (machineState: MachineState): Promise<void> => {
 
   process.removeListener('SIGINT', onSigInt);
   syncSharedMemory(state.systemMemory);
-  await stopGraphics();
+  await Promise.all([stopGraphics(), stopSound()]);
   teardownStdin(state.inputDevice);
 };
 
@@ -167,6 +173,7 @@ const start = async () => {
   const inputDevice = createInputDevice();
   setupStdin(inputDevice);
   startGraphics(systemMemory.shared.buffer as SharedArrayBuffer);
+  startSound(systemMemory.shared.buffer as SharedArrayBuffer);
   await new Promise((resolve) => setImmediate(resolve));
   await run({ cpuRegisters, mainBus, systemMemory, inputDevice });
 
