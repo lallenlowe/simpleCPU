@@ -38,6 +38,7 @@ BRICK_COL    = $F2
 BRICK_ROW    = $F3
 HIT_FLAG     = $F4
 CHECK_Y      = $F5
+PADDLE_DIR   = $F6      ; 0=stopped, 1=right, $FF=left
 
 ; --- Constants ---
 PADDLE_Y     = 90
@@ -96,6 +97,9 @@ start:
     STA COLOR
     JSR draw_paddle_rect
 
+    LDA #0
+    STA PADDLE_DIR
+
     JSR reset_ball
     LDA #COL_BALL
     STA COLOR
@@ -120,6 +124,7 @@ game_loop:
 @no_snd:
 
     JSR handle_input
+    JSR move_paddle
 
     ; Save & erase ball
     LDA BALL_X
@@ -296,44 +301,68 @@ reset_ball:
     STA BALL_DY
     RTS
 
-; --- Handle input ---
+; --- Handle input (set direction) ---
 handle_input:
     LDA IO_STATUS
     AND #$80
     BEQ @done
 
     LDA IO_DATA
-    AND #$7F             ; strip Apple I strobe bit
-    CMP #$61             ; 'a'
+    AND #$7F
+    CMP #$61             ; 'a' = move left
     BEQ @left
-    CMP #$64             ; 'd'
+    CMP #$64             ; 'd' = move right
     BEQ @right
-    JMP handle_input     ; drain other keys
-
-@left:
-    LDA PADDLE_X
-    STA OLD_PADDLE
-    SEC
-    SBC #PADDLE_SPD
-    BCS @sl
-    LDA #0
-@sl: STA PADDLE_X
-    JSR redraw_paddle
+    CMP #$73             ; 's' = stop
+    BEQ @stop
     JMP handle_input
 
+@left:
+    LDA #$FF
+    STA PADDLE_DIR
+    JMP handle_input
 @right:
+    LDA #1
+    STA PADDLE_DIR
+    JMP handle_input
+@stop:
+    LDA #0
+    STA PADDLE_DIR
+    JMP handle_input
+@done:
+    RTS
+
+; --- Move paddle based on direction ---
+move_paddle:
+    LDA PADDLE_DIR
+    BEQ @no_move
+
     LDA PADDLE_X
     STA OLD_PADDLE
+
+    LDA PADDLE_DIR
+    BMI @go_left
+
+    ; Move right
+    LDA PADDLE_X
     CLC
     ADC #PADDLE_SPD
     CMP #(SCREEN_W - PADDLE_W)
-    BCC @sr
+    BCC @store
     LDA #(SCREEN_W - PADDLE_W)
-@sr: STA PADDLE_X
-    JSR redraw_paddle
-    JMP handle_input
+    JMP @store
 
-@done:
+@go_left:
+    LDA PADDLE_X
+    SEC
+    SBC #PADDLE_SPD
+    BCS @store
+    LDA #0
+
+@store:
+    STA PADDLE_X
+    JSR redraw_paddle
+@no_move:
     RTS
 
 ; --- Redraw paddle ---
