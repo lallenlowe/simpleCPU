@@ -1,7 +1,7 @@
 Modules list:
 -------------
 ehbasic.o:
-    CODE              Offs=000000  Size=0028CE  Align=00001  Fill=0000
+    CODE              Offs=000000  Size=002A7D  Align=00001  Fill=0000
     VECTORS           Offs=000000  Size=000006  Align=00001  Fill=0000
 
 
@@ -9,7 +9,7 @@ Segment list:
 -------------
 Name                   Start     End    Size  Align
 ----------------------------------------------------
-CODE                  00C000  00E8CD  0028CE  00001
+CODE                  00C000  00EA7C  002A7D  00001
 VECTORS               00FFFA  00FFFF  000006  00001
 
 
