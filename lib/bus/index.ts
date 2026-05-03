@@ -1,6 +1,6 @@
 'use strict';
 
-import { Bus, CpuRegisters, Memory, setupBus } from '../initial-state';
+import { Bus, CpuRegisters, Memory } from '../initial-state';
 import { ControlWord } from '../control';
 import { interfaceMemoryAddress, interfaceMemoryData } from '../memory';
 import { interfaceAllAddressRegisters, interfaceAllDataRegisters } from '../register';
@@ -13,159 +13,134 @@ type MachineState = {
   inputDevice: InputDevice;
 };
 
-const outputToDataBus = ({ bus, data }: { bus: Bus; data: number }) => {
-  const newBus = { ...bus };
-  newBus.data |= data;
-
-  return newBus;
+const outputToDataBus = (bus: Bus, data: number): void => {
+  bus.data |= data;
 };
 
-const outputToAddressBus = ({ bus, address }: { bus: Bus; address: number }): Bus => {
-  const newBus = { ...bus };
-  newBus.address |= address;
-
-  return newBus;
+const outputToAddressBus = (bus: Bus, address: number): void => {
+  bus.address |= address;
 };
 
-const dataToAddressHigh = (bus: Bus, enable: boolean): Bus => {
+const dataToAddressHigh = (bus: Bus, enable: boolean): void => {
   if (enable) {
-    const newBus = { ...bus };
-    newBus.addressRegister = bus.addressRegister | (bus.data << 8);
-
-    return newBus;
+    bus.addressRegister = bus.addressRegister | (bus.data << 8);
   }
-
-  return bus;
 };
 
-const dataToAddressLow = (bus: Bus, enable: boolean): Bus => {
+const dataToAddressLow = (bus: Bus, enable: boolean): void => {
   if (enable) {
-    const newBus = { ...bus };
-    newBus.addressRegister = bus.addressRegister | bus.data;
-
-    return newBus;
+    bus.addressRegister = bus.addressRegister | bus.data;
   }
-
-  return bus;
 };
 
-const busRegisterToAddress = (bus: Bus, enable: boolean): Bus => {
+const busRegisterToAddress = (bus: Bus, enable: boolean): void => {
   if (enable) {
-    const newBus = { ...bus };
-    newBus.address = bus.addressRegister;
-
-    return newBus;
+    bus.address = bus.addressRegister;
   }
-
-  return bus;
 };
 
-const clearBus = (bus: Bus) => {
-  const newBus = setupBus();
-  newBus.addressRegister = bus.addressRegister;
-  return newBus;
+const clearBus = (bus: Bus): void => {
+  const saved = bus.addressRegister;
+  bus.addressRegister = 0;
+  bus.address = 0;
+  bus.data = 0;
+  bus.addressRegister = saved;
 };
 
 const interfaceAllRegisters = (
   machineState: MachineState,
   controlWord: ControlWord,
-): MachineState => {
-  let { cpuRegisters, mainBus, systemMemory } = machineState;
+): void => {
+  const { cpuRegisters, mainBus, systemMemory } = machineState;
 
-  mainBus = busRegisterToAddress(mainBus, controlWord.bao);
+  busRegisterToAddress(mainBus, controlWord.bao);
 
-  /* Output pass first since real hardware is parallel and this is synchronous */
-  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllAddressRegisters({
+  interfaceAllAddressRegisters({
     bus: mainBus,
     registers: cpuRegisters,
     output: true,
     input: false,
     controlWord,
-  }));
+  });
 
-  ({ bus: mainBus, memory: systemMemory } = interfaceMemoryAddress({
+  interfaceMemoryAddress({
     bus: mainBus,
     memory: systemMemory,
     output: true,
     input: false,
     controlWord,
     inputDevice: machineState.inputDevice,
-  }));
+  });
 
-  /* Input pass next since real hardware is parallel and this is synchronous */
-  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllAddressRegisters({
+  interfaceAllAddressRegisters({
     bus: mainBus,
     registers: cpuRegisters,
     output: false,
     input: true,
     controlWord,
-  }));
+  });
 
-  ({ bus: mainBus, memory: systemMemory } = interfaceMemoryAddress({
+  interfaceMemoryAddress({
     bus: mainBus,
     memory: systemMemory,
     output: false,
     input: true,
     controlWord,
     inputDevice: machineState.inputDevice,
-  }));
+  });
 
-  /* Another output pass since we have 2 busses, data and address */
-  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllDataRegisters({
+  interfaceAllDataRegisters({
     bus: mainBus,
     registers: cpuRegisters,
     output: true,
     input: false,
     controlWord,
-  }));
+  });
 
-  ({ bus: mainBus, memory: systemMemory } = interfaceMemoryData({
+  interfaceMemoryData({
     bus: mainBus,
     memory: systemMemory,
     output: true,
     input: false,
     controlWord,
     inputDevice: machineState.inputDevice,
-  }));
+  });
 
-  /* Another input pass since we have 2 busses, data and address */
-  ({ registers: cpuRegisters, bus: mainBus } = interfaceAllDataRegisters({
+  interfaceAllDataRegisters({
     bus: mainBus,
     registers: cpuRegisters,
     output: false,
     input: true,
     controlWord,
-  }));
+  });
 
-  ({ bus: mainBus, memory: systemMemory } = interfaceMemoryData({
+  interfaceMemoryData({
     bus: mainBus,
     memory: systemMemory,
     output: false,
     input: true,
     controlWord,
     inputDevice: machineState.inputDevice,
-  }));
+  });
 
   if (controlWord.bac) {
-    mainBus = { ...mainBus, addressRegister: 0 };
+    mainBus.addressRegister = 0;
   }
 
-  mainBus = dataToAddressLow(mainBus, controlWord.dal);
-  mainBus = dataToAddressHigh(mainBus, controlWord.dah);
+  dataToAddressLow(mainBus, controlWord.dal);
+  dataToAddressHigh(mainBus, controlWord.dah);
 
   if (controlWord.dahc && cpuRegisters.addressCarry) {
-    mainBus = { ...mainBus, addressRegister: (mainBus.addressRegister + 0x100) & 0xffff };
+    mainBus.addressRegister = (mainBus.addressRegister + 0x100) & 0xffff;
   }
 
   if (controlWord.bai) {
-    mainBus = { ...mainBus, addressRegister: (mainBus.addressRegister + 1) & 0xffff };
+    mainBus.addressRegister = (mainBus.addressRegister + 1) & 0xffff;
   }
 
   if (controlWord.irqvec) {
-    mainBus = { ...mainBus, addressRegister: 0xFFFE };
+    mainBus.addressRegister = 0xFFFE;
   }
-
-  return { cpuRegisters, mainBus, systemMemory, inputDevice: machineState.inputDevice };
 };
 
 export {

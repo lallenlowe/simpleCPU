@@ -38,32 +38,28 @@ const cycle = (machineState: MachineState): MachineState => {
     );
   }
 
-  let currentState = machineState;
+  const { cpuRegisters, mainBus } = machineState;
+
   if (controlWord.spu) {
-    currentState = {
-      ...currentState,
-      cpuRegisters: { ...currentState.cpuRegisters, sp: (currentState.cpuRegisters.sp + 1) & 0xff },
-    };
+    cpuRegisters.sp = (cpuRegisters.sp + 1) & 0xff;
   }
 
-  // eslint-disable-next-line prefer-const
-  let { cpuRegisters, mainBus, systemMemory } = interfaceAllRegisters(currentState, controlWord);
+  interfaceAllRegisters(machineState, controlWord);
 
   if (controlWord.zn) {
     cpuRegisters.status.Z = mainBus.data === 0;
     cpuRegisters.status.N = (mainBus.data & 0x80) !== 0;
   }
 
-  // Real busses are cleared just by having no signals output on them
-  mainBus = clearBus(mainBus);
+  clearBus(mainBus);
 
-  cpuRegisters = setImmediateFlags({ controlWord, cpuRegisters });
+  setImmediateFlags({ controlWord, cpuRegisters });
 
   if (controlWord.c1) {
     cpuRegisters.aluB = 1;
   }
 
-  cpuRegisters = alu.operate({ registers: cpuRegisters, controlWord });
+  alu.operate({ registers: cpuRegisters, controlWord });
 
   cpuRegisters.pc = incrementProgramCounter(cpuRegisters.pc, controlWord.pce);
 
@@ -78,7 +74,7 @@ const cycle = (machineState: MachineState): MachineState => {
 
   cpuRegisters.ic = incrementInstructionCounter(cpuRegisters.ic, controlWord);
 
-  return { cpuRegisters, mainBus, systemMemory, inputDevice: machineState.inputDevice };
+  return machineState;
 };
 
 const SPRITE_PATTERNS_START = 0x7e00;
@@ -107,11 +103,13 @@ const syncSharedMemory = (memory: Memory) => {
 };
 
 let clockTicks = 0;
+let instructionCount = 0;
 let runStartTime = BigInt(0);
 
-const run = async (machineState: MachineState): Promise<void> => {
+const run = async (machineState: MachineState, maxTicks = Infinity): Promise<void> => {
   let state = machineState;
   clockTicks = 0;
+  instructionCount = 0;
   let running = true;
   runStartTime = process.hrtime.bigint();
 
@@ -127,12 +125,21 @@ const run = async (machineState: MachineState): Promise<void> => {
       break;
     }
 
+    if (state.cpuRegisters.ic === 0) {
+      instructionCount++;
+      if (clockTicks >= maxTicks) {
+        break;
+      }
+    }
+
     if (clockTicks % SYNC_INTERVAL === 0) {
       syncSharedMemory(state.systemMemory);
       if (checkInterrupt(state.inputDevice)) {
         break;
       }
     }
+
+
   }
 
   const elapsed = Number(process.hrtime.bigint() - runStartTime) / 1e9;
@@ -143,18 +150,25 @@ const run = async (machineState: MachineState): Promise<void> => {
   teardownStdin(state.inputDevice);
   process.removeListener('SIGINT', onSigInt);
 
-  process.stderr.write(`\n${clockTicks} cycles in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
+  process.stderr.write(`\nPC=$${state.cpuRegisters.pc.toString(16).padStart(4, '0')} ${clockTicks} microsteps, ${instructionCount} instructions in ${elapsed.toFixed(3)}s (${mhz.toFixed(2)} MHz)\n`);
 };
 
 /* ##################################################################### */
 
-const parseOrg = (args: string[]): number => {
-  const orgIndex = args.indexOf('--org');
-  if (orgIndex === -1 || orgIndex + 1 >= args.length) return DEFAULT_LOAD_ADDRESS;
-  return parseInt(args[orgIndex + 1], 16);
+const parseHexArg = (args: string[], flag: string, fallback: number): number => {
+  const idx = args.indexOf(flag);
+  if (idx === -1 || idx + 1 >= args.length) return fallback;
+  return parseInt(args[idx + 1], 16);
 };
 
-const parseRom = (args: string[]): string => {
+const parseDecArg = (args: string[], flag: string, fallback: number): number => {
+  const idx = args.indexOf(flag);
+  if (idx === -1 || idx + 1 >= args.length) return fallback;
+  return parseInt(args[idx + 1], 10);
+};
+
+const parseRom = (args: string[]): string | null => {
+  if (args.includes('--no-rom')) return null;
   const idx = args.indexOf('--rom');
   if (idx !== -1 && idx + 1 < args.length) return args[idx + 1];
   return path.join(__dirname, '..', '..', 'programs', 'ehbasic.bin');
@@ -162,21 +176,23 @@ const parseRom = (args: string[]): string => {
 
 const start = async () => {
   debugMode = process.argv.includes('--debug');
-  const skipArgs = new Set(['--debug', '--org', '--rom']);
+  const maxTicks = parseDecArg(process.argv, '--max-ticks', Infinity);
+  const skipArgs = new Set(['--debug', '--org', '--start', '--rom', '--no-rom', '--max-ticks']);
   let skipNext = false;
   const binFile = process.argv.slice(2).find((arg) => {
     if (skipNext) { skipNext = false; return false; }
-    if (arg === '--org' || arg === '--rom') { skipNext = true; return false; }
+    if (arg === '--org' || arg === '--rom' || arg === '--start' || arg === '--max-ticks') { skipNext = true; return false; }
     return !skipArgs.has(arg);
   });
 
   const romFile = parseRom(process.argv);
-  const loadAddress = binFile ? parseOrg(process.argv) : 0xC000;
+  const loadAddress = binFile ? parseHexArg(process.argv, '--org', DEFAULT_LOAD_ADDRESS) : 0xC000;
+  const startAddress = parseHexArg(process.argv, '--start', loadAddress);
   const cpuRegisters = setupCpuRegisters();
-  cpuRegisters.pc = loadAddress;
+  cpuRegisters.pc = startAddress;
   const mainBus = setupBus();
   let systemMemory = setupMemory();
-  systemMemory = loadBinFileToMemory(systemMemory, romFile, 0xC000);
+  if (romFile) systemMemory = loadBinFileToMemory(systemMemory, romFile, 0xC000);
   if (binFile) {
     systemMemory = loadBinFileToMemory(systemMemory, binFile, loadAddress);
   }
@@ -185,7 +201,7 @@ const start = async () => {
   startGraphics(systemMemory.shared.buffer as SharedArrayBuffer);
   startSound(systemMemory.shared.buffer as SharedArrayBuffer);
   await new Promise((resolve) => setImmediate(resolve));
-  await run({ cpuRegisters, mainBus, systemMemory, inputDevice });
+  await run({ cpuRegisters, mainBus, systemMemory, inputDevice }, maxTicks);
 };
 
 export { start };

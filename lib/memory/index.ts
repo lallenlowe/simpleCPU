@@ -22,68 +22,57 @@ type MemoryInterface = {
   inputDevice: InputDevice;
 };
 
-const interfaceMemoryData = ({ bus, memory, output, input, controlWord, inputDevice }: MemoryInterface) => {
+const interfaceMemoryData = ({ bus, memory, output, input, controlWord, inputDevice }: MemoryInterface): void => {
   if (output && controlWord.ro) {
     if (memory.addressRegister === IO_INPUT_STATUS) {
-      const newBus = outputToDataBus({ bus, data: hasData(inputDevice) ? 0x80 : 0 });
-      return { bus: newBus, memory };
+      outputToDataBus(bus, hasData(inputDevice) ? 0x80 : 0);
+      return;
     }
     if (memory.addressRegister === IO_INPUT_DATA) {
-      const newBus = outputToDataBus({ bus, data: readByte(inputDevice) | 0x80 });
-      return { bus: newBus, memory };
+      outputToDataBus(bus, readByte(inputDevice) | 0x80);
+      return;
     }
     if (memory.addressRegister === IO_MOUSE_X) {
       pollMouse(inputDevice);
-      const newBus = outputToDataBus({ bus, data: inputDevice.mouseX & 0xff });
-      return { bus: newBus, memory };
+      outputToDataBus(bus, inputDevice.mouseX & 0xff);
+      return;
     }
     if (memory.addressRegister === IO_MOUSE_Y) {
-      const newBus = outputToDataBus({ bus, data: inputDevice.mouseY & 0xff });
-      return { bus: newBus, memory };
+      outputToDataBus(bus, inputDevice.mouseY & 0xff);
+      return;
     }
     if (memory.addressRegister === IO_MOUSE_BTN) {
-      const newBus = outputToDataBus({ bus, data: inputDevice.mouseButtons & 0xff });
-      return { bus: newBus, memory };
+      outputToDataBus(bus, inputDevice.mouseButtons & 0xff);
+      return;
     }
-    const newBus = outputToDataBus({ bus, data: memory.data[memory.addressRegister] });
-    return { bus: newBus, memory };
+    outputToDataBus(bus, memory.data[memory.addressRegister]);
+    return;
   }
 
   if (input && controlWord.ri) {
     if (memory.addressRegister === IO_OUTPUT) {
       process.stdout.write(String(bus.data) + '\n');
-      return { bus, memory };
+      return;
     }
     if (memory.addressRegister === IO_CHAR) {
       let ch = bus.data & 0x7f;
       if (ch === 0x0d) ch = 0x0a;
       process.stdout.write(String.fromCharCode(ch));
-      return { bus, memory };
+      return;
     }
-    const newMemory = { ...memory };
-    newMemory.data[memory.addressRegister] = bus.data;
-    return { bus, memory: newMemory };
+    memory.data[memory.addressRegister] = bus.data;
   }
-
-  return { bus, memory };
 };
 
-const interfaceMemoryAddress = ({ bus, memory, output, input, controlWord }: MemoryInterface) => {
+const interfaceMemoryAddress = ({ bus, memory, output, input, controlWord }: MemoryInterface): void => {
   if (output && controlWord.mo) {
-    const newBus = outputToAddressBus({
-      bus,
-      address: memory.addressRegister,
-    });
-    return { bus: newBus, memory };
+    outputToAddressBus(bus, memory.addressRegister);
+    return;
   }
 
   if (input && controlWord.mi) {
-    const newMemory = { ...memory };
-    newMemory.addressRegister = bus.address;
-    return { bus, memory: newMemory };
+    memory.addressRegister = bus.address;
   }
-
-  return { bus, memory };
 };
 
 export { interfaceMemoryData, interfaceMemoryAddress };

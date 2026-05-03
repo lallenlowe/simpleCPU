@@ -2,8 +2,6 @@
 
 import * as fs from 'fs';
 
-type Byte = boolean[];
-
 type Bus = {
   addressRegister: number; // 16 bit
   address: number; // 16 bit
@@ -97,7 +95,6 @@ const loadBinFileToMemory = (memory: Memory, fileName: string, loadAddress: numb
 };
 
 export {
-  Byte,
   Bus,
   CpuRegisters,
   Memory,
