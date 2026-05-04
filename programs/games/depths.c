@@ -4,7 +4,7 @@
  *
  * Build:  make -f ../../target/cc65/Makefile depths.bin
  * Run:    node dist/index.js programs/games/depths.bin --org 0400
- * Keys:   WASD=move/attack  >=descend  g=pickup  i=inventory  S/D=level-up
+ * Keys:   WASD=move/attack  >=descend  g=pickup  c=close door  i=inventory  S/D=level-up
  */
 
 #include "simplecpu.h"
@@ -1190,10 +1190,11 @@ static void help_screen(void) {
     draw_str(0,24,">     DESCEND STAIRS",7);
     draw_str(0,32,"<     ASCEND (NEED AMULET)",7);
     draw_str(0,40,"G     PICK UP ITEM",7);
-    draw_str(0,48,"I     INVENTORY",7);
-    draw_str(0,56,"a-h   USE OR EQUIP ITEM",7);
-    draw_str(0,64,"A-H   DROP ITEM",7);
-    draw_str(0,72,"ANY KEY TO CLOSE",8);
+    draw_str(0,48,"C     CLOSE DOOR",7);
+    draw_str(0,56,"I     INVENTORY",7);
+    draw_str(0,64,"a-h   USE OR EQUIP ITEM",7);
+    draw_str(0,72,"A-H   DROP ITEM",7);
+    draw_str(0,80,"ANY KEY TO CLOSE",8);
     while(!pollkey())waitvsync();
     do_redraw();
 }
@@ -1333,6 +1334,29 @@ void main(void) {
 
         /* Pickup */
         if(k=='g'||k=='G'){pickup_item();acted=1;}
+
+        /* Close door */
+        else if(k=='c'){
+            unsigned char dk;
+            add_message((const unsigned char*)"CLOSE WHICH DIRECTION?");
+            draw_status_panel();draw_messages();waitvsync();
+            dk=0; while(!dk){waitvsync();dk=pollkey();}
+            nx=px;ny=py;
+            if(dk=='w')ny--; else if(dk=='s')ny++;
+            else if(dk=='a')nx--; else if(dk=='d')nx++;
+            else {add_message((const unsigned char*)"NEVERMIND.");continue;}
+            if(TILE_TYPE(MAP_AT(nx,ny))==T_DOOR_O&&monster_at(nx,ny)==255){
+                MAP_AT(nx,ny)=T_DOOR_C;
+                add_message((const unsigned char*)"YOU CLOSE THE DOOR.");
+                compute_fov();do_redraw();acted=1;
+            } else if(TILE_TYPE(MAP_AT(nx,ny))==T_DOOR_O){
+                add_message((const unsigned char*)"SOMETHING IS IN THE WAY.");
+            } else if(TILE_TYPE(MAP_AT(nx,ny))==T_DOOR_C){
+                add_message((const unsigned char*)"THE DOOR IS ALREADY CLOSED.");
+            } else {
+                add_message((const unsigned char*)"THERE IS NO DOOR THERE.");
+            }
+        }
 
         /* Movement / attack */
         else {
