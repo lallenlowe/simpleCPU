@@ -17,7 +17,6 @@
 #define MAP_H         32
 #define VIEW_W        20
 #define VIEW_H        20
-#define FOV_R          8
 #define MAX_ROOMS     12
 #define MAX_MONSTERS  16
 #define NUM_MON_TYPES 13
@@ -563,80 +562,38 @@ static void update_camera(void) {
 /* FOV                                                                 */
 /* ================================================================== */
 
-/* Octant shadowcasting — visits each visible tile exactly once.
- * Uses fixed-point slopes (numerator/denominator) to avoid floats.
- * 8 octant transforms inline; recursive scan per octant row. */
+/* Room-based visibility (classic Rogue style).
+ * In a room: entire room + walls visible. In a corridor: adjacent tiles only. */
 
-static signed char oct_xx[8]={ 1, 0, 0,-1,-1, 0, 0, 1};
-static signed char oct_xy[8]={ 0, 1, 1, 0, 0,-1,-1, 0};
-static signed char oct_yx[8]={ 0, 1,-1, 0, 0,-1, 1, 0};
-static signed char oct_yy[8]={ 1, 0, 0, 1,-1, 0, 0,-1};
-
-static void cast_octant(unsigned char oct,unsigned char row,
-                        unsigned char start_n, unsigned char start_d,
-                        unsigned char end_n, unsigned char end_d){
-    unsigned char col;
-    int tx,ty;
-    unsigned char blocked, new_start_n, new_start_d;
-    unsigned char prev_wall;
-
-    if(start_n * end_d <= end_n * start_d) return;
-
-    for(;row<=FOV_R;row++){
-        blocked=0; prev_wall=0;
-        new_start_n=start_n; new_start_d=start_d;
-        for(col=0;col<=row;col++){
-            /* Check if this column is within the visible slope range */
-            /* slope of cell = (col*2-1)/(row*2) to (col*2+1)/(row*2) */
-            /* left edge: (2*col-1)/(2*row), right edge: (2*col+1)/(2*row) */
-
-            /* Skip if right edge < end slope */
-            if((unsigned int)((col<<1)+1) * end_d < (unsigned int)(end_n) * (row<<1))
-                continue;
-            /* Stop if left edge > start slope */
-            if(col>0 && (unsigned int)((col<<1)-1) * start_d > (unsigned int)(start_n) * (row<<1))
-                break;
-
-            tx=(int)px + (int)((signed char)col*oct_xx[oct]+(signed char)row*oct_yx[oct]);
-            ty=(int)py + (int)((signed char)col*oct_xy[oct]+(signed char)row*oct_yy[oct]);
-            if(tx<0||tx>=MAP_W||ty<0||ty>=MAP_H)continue;
-
-            /* Within FOV radius? (Manhattan with 1.5x like old code) */
-            if(col+row > FOV_R+(FOV_R>>1)) continue;
-
-            MAP_AT((unsigned char)tx,(unsigned char)ty)|=F_VISIBLE|F_EXPLORED;
-
-            if(TILE_TYPE(MAP_AT((unsigned char)tx,(unsigned char)ty))==T_WALL){
-                if(!prev_wall){
-                    /* Start of a wall segment — recurse with narrowed end slope */
-                    if(col>0){
-                        cast_octant(oct,row+1,
-                            new_start_n,new_start_d,
-                            (unsigned char)((col<<1)-1),(unsigned char)(row<<1));
-                    }
-                }
-                /* Advance start slope past this wall */
-                new_start_n=(unsigned char)((col<<1)+1);
-                new_start_d=(unsigned char)(row<<1);
-                prev_wall=1;
-            } else {
-                if(prev_wall){
-                    /* Exiting wall — new start slope is set */
-                    prev_wall=0;
-                }
-            }
-        }
-        if(prev_wall) return;
-        start_n=new_start_n; start_d=new_start_d;
-    }
+static unsigned char player_room(void){
+    unsigned char i;
+    for(i=0;i<num_rooms;i++)
+        if(px>=room_rx[i]&&px<room_rx[i]+room_rw[i]&&
+           py>=room_ry[i]&&py<room_ry[i]+room_rh[i]) return i;
+    return 255;
 }
 
 static void compute_fov(void) {
-    unsigned int i; unsigned char o;
+    unsigned int i;
+    unsigned char r,x,y,x1,y1,x2,y2;
     for(i=0;i<(unsigned int)(MAP_W*MAP_H);i++) map_data[i]&=(unsigned char)~F_VISIBLE;
     MAP_AT(px,py)|=F_VISIBLE|F_EXPLORED;
-    for(o=0;o<8;o++)
-        cast_octant(o,1, 1,1, 0,1);
+    r=player_room();
+    if(r!=255){
+        /* In a room: reveal room interior + surrounding walls */
+        x1=(room_rx[r]>0)?room_rx[r]-1:0;
+        y1=(room_ry[r]>0)?room_ry[r]-1:0;
+        x2=room_rx[r]+room_rw[r]; if(x2>=MAP_W) x2=MAP_W-1;
+        y2=room_ry[r]+room_rh[r]; if(y2>=MAP_H) y2=MAP_H-1;
+        for(y=y1;y<=y2;y++)
+            for(x=x1;x<=x2;x++)
+                MAP_AT(x,y)|=F_VISIBLE|F_EXPLORED;
+    } else {
+        /* In a corridor: reveal adjacent tiles */
+        for(y=(py>0?py-1:0);y<=(py<MAP_H-1?py+1:py);y++)
+            for(x=(px>0?px-1:0);x<=(px<MAP_W-1?px+1:px);x++)
+                MAP_AT(x,y)|=F_VISIBLE|F_EXPLORED;
+    }
 }
 
 /* ================================================================== */
