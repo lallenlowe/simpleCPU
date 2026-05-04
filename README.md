@@ -59,6 +59,8 @@ cat programs/games/lander.bas | node dist/index.js programs/roms/a1basic.bin --o
 
 | Program | Load address | Description | How to run |
 |---------|-------------|-------------|------------|
+| `depths.bin` | `$0400` | **DEPTHS** — complete roguelike dungeon crawler (C/cc65) | `node dist/index.js programs/games/depths.bin --org 0400` |
+| `snake.bin` | `$0400` | Snake with vsync and sound (C/cc65) | `node dist/index.js programs/games/snake.bin --org 0400` |
 | `breakout.bin` | `$0400` | Breakout with sound & sprites (assembly) | `node dist/index.js programs/games/breakout.bin --org 0400` |
 | `startrek.bas` | — | Super Star Trek (EhBASIC) | `(printf "C\n\n"; cat programs/games/startrek.bas) \| node dist/index.js` |
 | `lander.bas` | — | Lunar Lander (Apple 1 BASIC) | `cat programs/games/lander.bas \| node dist/index.js programs/roms/a1basic.bin --org E000` |
@@ -88,7 +90,7 @@ cat programs/games/lander.bas | node dist/index.js programs/roms/a1basic.bin --o
 The included programs use [cc65](https://cc65.github.io/) syntax. Install with `brew install cc65` on macOS.
 
 ```sh
-# Standalone program at $0400
+# Standalone assembly program at $0400
 ca65 --feature loose_string_term --feature labels_without_colons -o prog.o prog.asm
 ld65 -C programs/standalone.cfg -o prog.bin prog.o
 
@@ -97,6 +99,83 @@ ca65 --feature loose_string_term --feature labels_without_colons -o ehbasic.o pr
 ca65 --feature loose_string_term --feature labels_without_colons -o ehbasic_mon.o programs/roms/ehbasic_mon.asm
 ld65 -C programs/roms/ehbasic.cfg -o programs/roms/ehbasic.bin ehbasic.o ehbasic_mon.o
 ```
+
+### Writing C programs (cc65)
+
+A complete cc65 target for simpleCPU lives in `target/cc65/`. It includes a
+custom linker script, C runtime startup, and `simplecpu.h` with all hardware
+registers pre-defined as memory-mapped C pointers.
+
+```sh
+# From inside programs/games/ or programs/demos/
+make -f ../../target/cc65/Makefile mygame.bin
+node dist/index.js programs/games/mygame.bin --org 0400
+```
+
+`simplecpu.h` provides:
+- `IO_PUTCHAR`, `IO_STATUS`, `IO_DATA` — character I/O
+- `MODE_REG`, `VSYNC`, `FRAMEBUFFER` — graphics
+- `CH1_FREQ_LO` … `NOISE_VOLUME` — sound chip
+- `MOUSE_X`, `MOUSE_Y`, `MOUSE_BTN` — mouse
+- `SPR0_X` … `SPR7_COL`, `SPR_PATTERNS` — sprites
+- `waitvsync()`, `pollkey()`, `getkey()`, `plot3()`, `plot4()` — helpers
+
+---
+
+## DEPTHS — Roguelike
+
+A complete permadeath dungeon crawler written in C and compiled with cc65.
+Inspired by Dungeon Crawl Stone Soup.
+
+```sh
+node dist/index.js programs/games/depths.bin --org 0400
+```
+
+### Goal
+
+Descend 10 floors, find the **Amulet of Descent** (guarded by the Dragon),
+and escape back to the surface alive.
+
+### Controls
+
+| Key | Action |
+|-----|--------|
+| `WASD` | Move / bump-to-attack |
+| `>` | Descend stairs |
+| `<` | Ascend stairs (requires Amulet) |
+| `g` | Pick up item |
+| `i` | Open inventory |
+| `a`–`h` | Use or equip item in inventory |
+| `A`–`H` | Drop item from inventory |
+| `S` / `D` | Level-up stat choice (STR or DEX) |
+| `?` | Help screen |
+
+### Features
+
+- **Procedural dungeons** — BSP room generation with L-corridor connections;
+  unique layout every run
+- **Field of view** — symmetric raycasting (radius 8); explored tiles remembered
+  in dim memory
+- **13 monster types** — Rat through Dragon, each with unique stats and
+  colour; IDLE → CHASE → FLEE state machine
+- **Combat** — d8 hit roll vs. dexterity, d6+STR damage, weapon and armour
+  modifiers; every number shown
+- **Items** — 6 weapons, 4 armours, 5 potions, 4 scrolls, gold piles; items
+  scale with floor depth
+- **Identification** — potions have randomised colours, scrolls have nonsense
+  labels; revealed on use
+- **Inventory** — 8 slots; equip weapons and armour, drink potions, read scrolls
+- **Character progression** — 9 levels; choose +2 STR or +2 DEX on level-up;
+  full HP restore on level
+- **Permadeath** — death screen shows cause, stats, and score; new run begins
+  immediately
+- **Win condition** — Amulet of Descent on floor 10 (Dragon guards it); carry
+  it to the surface
+- **Scoring** — gold + kills × 50 + deepest floor × 100 + 5000 win bonus
+
+### Memory footprint
+
+~10 KB of code + data; well within the 31 KB user RAM limit.
 
 ## Graphics
 
@@ -262,6 +341,9 @@ The simulator runs at approximately 3.86 MHz on modern hardware (reported on exi
 
 - [x] Mode 4: 128×128, 256 colors, 8bpp (16 KB framebuffer)
 - [x] Sound chip — 3 tone channels (sine/square/sawtooth/triangle) + 1 noise channel, memory-mapped registers, running on its own worker thread like the graphics chip
+- [x] cc65 C target — custom linker script, crt0, and `simplecpu.h` header; build C programs with `make -f target/cc65/Makefile`
+- [x] Snake — toolchain validation game written in C
+- [x] DEPTHS — complete roguelike dungeon crawler: procedural maps, FOV, 13 monster types, items, inventory, identification, permadeath, win condition
 - [ ] Double buffering for flicker-free BASIC graphics
 - [ ] Interrupt system (IRQ, NMI, authentic BRK behavior, RTI instruction)
 - [ ] Bank switching for ROM/I/O overlay — I/O registers ($FE00+) currently sit inside the ROM region ($C000–$FFFF), handled implicitly; a proper bank-switching mechanism would make this explicit
@@ -274,3 +356,8 @@ The simulator runs at approximately 3.86 MHz on modern hardware (reported on exi
 - [ ] Joystick / gamepad input — gamepad support for games
 - [ ] Built-in machine monitor — like the C64's monitor, letting you inspect memory and poke assembly from the BASIC prompt
 - [ ] Disk I/O — a simple block device so EhBASIC can SAVE/LOAD programs to files
+- [ ] DEPTHS: god system (altar on floor 5, sacrifice kills for power)
+- [ ] DEPTHS: status effects (poison DoT, confused movement)
+- [ ] DEPTHS: special rooms (treasure vault, monster den)
+- [ ] DEPTHS: shops (spend gold for identified items)
+- [ ] DEPTHS: ranged weapons and spells
