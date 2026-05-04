@@ -563,37 +563,80 @@ static void update_camera(void) {
 /* FOV                                                                 */
 /* ================================================================== */
 
-static unsigned char has_los(unsigned char x0,unsigned char y0,
-                               unsigned char x1,unsigned char y1){
-    unsigned char x=x0,y=y0,adx,ady;
-    signed char sx,sy,err,e2;
-    if(x1>=x0){adx=x1-x0;sx=1;}else{adx=x0-x1;sx=-1;}
-    if(y1>=y0){ady=y1-y0;sy=1;}else{ady=y0-y1;sy=-1;}
-    err=(signed char)adx-(signed char)ady;
-    for(;;){
-        if(x==x1&&y==y1)return 1;
-        if(!(x==x0&&y==y0)&&TILE_TYPE(MAP_AT(x,y))==T_WALL)return 0;
-        e2=(signed char)(err+err);
-        if((signed char)(e2+(signed char)ady)>0){err=(signed char)(err-(signed char)ady);x=(unsigned char)((int)x+sx);}
-        if((signed char)((signed char)adx-e2)>0){err=(signed char)(err+(signed char)adx);y=(unsigned char)((int)y+sy);}
+/* Octant shadowcasting — visits each visible tile exactly once.
+ * Uses fixed-point slopes (numerator/denominator) to avoid floats.
+ * 8 octant transforms inline; recursive scan per octant row. */
+
+static signed char oct_xx[8]={ 1, 0, 0,-1,-1, 0, 0, 1};
+static signed char oct_xy[8]={ 0, 1, 1, 0, 0,-1,-1, 0};
+static signed char oct_yx[8]={ 0, 1,-1, 0, 0,-1, 1, 0};
+static signed char oct_yy[8]={ 1, 0, 0, 1,-1, 0, 0,-1};
+
+static void cast_octant(unsigned char oct,unsigned char row,
+                        unsigned char start_n, unsigned char start_d,
+                        unsigned char end_n, unsigned char end_d){
+    unsigned char col;
+    int tx,ty;
+    unsigned char blocked, new_start_n, new_start_d;
+    unsigned char prev_wall;
+
+    if(start_n * end_d <= end_n * start_d) return;
+
+    for(;row<=FOV_R;row++){
+        blocked=0; prev_wall=0;
+        new_start_n=start_n; new_start_d=start_d;
+        for(col=0;col<=row;col++){
+            /* Check if this column is within the visible slope range */
+            /* slope of cell = (col*2-1)/(row*2) to (col*2+1)/(row*2) */
+            /* left edge: (2*col-1)/(2*row), right edge: (2*col+1)/(2*row) */
+
+            /* Skip if right edge < end slope */
+            if((unsigned int)((col<<1)+1) * end_d < (unsigned int)(end_n) * (row<<1))
+                continue;
+            /* Stop if left edge > start slope */
+            if(col>0 && (unsigned int)((col<<1)-1) * start_d > (unsigned int)(start_n) * (row<<1))
+                break;
+
+            tx=(int)px + (int)((signed char)col*oct_xx[oct]+(signed char)row*oct_yx[oct]);
+            ty=(int)py + (int)((signed char)col*oct_xy[oct]+(signed char)row*oct_yy[oct]);
+            if(tx<0||tx>=MAP_W||ty<0||ty>=MAP_H)continue;
+
+            /* Within FOV radius? (Manhattan with 1.5x like old code) */
+            if(col+row > FOV_R+(FOV_R>>1)) continue;
+
+            MAP_AT((unsigned char)tx,(unsigned char)ty)|=F_VISIBLE|F_EXPLORED;
+
+            if(TILE_TYPE(MAP_AT((unsigned char)tx,(unsigned char)ty))==T_WALL){
+                if(!prev_wall){
+                    /* Start of a wall segment — recurse with narrowed end slope */
+                    if(col>0){
+                        cast_octant(oct,row+1,
+                            new_start_n,new_start_d,
+                            (unsigned char)((col<<1)-1),(unsigned char)(row<<1));
+                    }
+                }
+                /* Advance start slope past this wall */
+                new_start_n=(unsigned char)((col<<1)+1);
+                new_start_d=(unsigned char)(row<<1);
+                prev_wall=1;
+            } else {
+                if(prev_wall){
+                    /* Exiting wall — new start slope is set */
+                    prev_wall=0;
+                }
+            }
+        }
+        if(prev_wall) return;
+        start_n=new_start_n; start_d=new_start_d;
     }
 }
 
 static void compute_fov(void) {
-    signed char dx,dy; unsigned char ax,ay; int tx,ty; unsigned int i;
+    unsigned int i; unsigned char o;
     for(i=0;i<(unsigned int)(MAP_W*MAP_H);i++) map_data[i]&=(unsigned char)~F_VISIBLE;
     MAP_AT(px,py)|=F_VISIBLE|F_EXPLORED;
-    for(dy=-FOV_R;dy<=FOV_R;dy++){
-        ty=(int)py+(int)dy; if(ty<0||ty>=MAP_H)continue;
-        ay=(dy<0)?(unsigned char)(-dy):(unsigned char)dy;
-        for(dx=-FOV_R;dx<=FOV_R;dx++){
-            tx=(int)px+(int)dx; if(tx<0||tx>=MAP_W)continue;
-            ax=(dx<0)?(unsigned char)(-dx):(unsigned char)dx;
-            if((unsigned char)(ax+ay)>FOV_R+(FOV_R>>1))continue;
-            if(has_los(px,py,(unsigned char)tx,(unsigned char)ty))
-                MAP_AT(tx,ty)|=F_VISIBLE|F_EXPLORED;
-        }
-    }
+    for(o=0;o<8;o++)
+        cast_octant(o,1, 1,1, 0,1);
 }
 
 /* ================================================================== */
