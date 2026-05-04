@@ -65,12 +65,14 @@
 #define T_STAIR_U 5
 #define T_WATER   6
 
-#define F_EXPLORED 0x08
-#define F_VISIBLE  0x10
+#define F_EXPLORED    0x08
+#define F_VISIBLE     0x10
+#define F_WAS_VISIBLE 0x20
 
-#define TILE_TYPE(t)   ((t) & 0x07)
-#define IS_EXPLORED(t) ((t) & F_EXPLORED)
-#define IS_VISIBLE(t)  ((t) & F_VISIBLE)
+#define TILE_TYPE(t)      ((t) & 0x07)
+#define IS_EXPLORED(t)    ((t) & F_EXPLORED)
+#define IS_VISIBLE(t)     ((t) & F_VISIBLE)
+#define WAS_VISIBLE(t)    ((t) & F_WAS_VISIBLE)
 #define MAP_IDX(x,y)   (((unsigned int)(y) << 6) | (unsigned char)(x))
 #define MAP_AT(x,y)    map_data[MAP_IDX((x),(y))]
 
@@ -211,6 +213,7 @@ static const unsigned int xp_thresh[9] = {50,120,220,360,550,800,1100,1500,2000}
 
 static unsigned char map_data[MAP_W * MAP_H];
 static unsigned char px, py, cam_x, cam_y, depth;
+static unsigned char prev_px, prev_py;
 
 static unsigned char num_rooms;
 static unsigned char room_cx[MAX_ROOMS], room_cy[MAX_ROOMS];
@@ -411,6 +414,16 @@ static void draw_map_tile(unsigned char sx, unsigned char sy,
 }
 
 static void draw_viewport(void) {
+    unsigned char vx,vy,tile;
+    for(vy=0;vy<VIEW_H;vy++)
+        for(vx=0;vx<VIEW_W;vx++){
+            tile=MAP_AT(cam_x+vx,cam_y+vy);
+            if(!(((tile>>1)^tile)&F_VISIBLE)) continue;
+            draw_map_tile(vx,vy,tile);
+        }
+}
+
+static void draw_viewport_full(void) {
     unsigned char vx,vy;
     for(vy=0;vy<VIEW_H;vy++)
         for(vx=0;vx<VIEW_W;vx++)
@@ -576,7 +589,11 @@ static unsigned char player_room(void){
 static void compute_fov(void) {
     unsigned int i;
     unsigned char r,x,y,x1,y1,x2,y2;
-    for(i=0;i<(unsigned int)(MAP_W*MAP_H);i++) map_data[i]&=(unsigned char)~F_VISIBLE;
+    for(i=0;i<(unsigned int)(MAP_W*MAP_H);i++){
+        if(map_data[i]&F_VISIBLE) map_data[i]|=F_WAS_VISIBLE;
+        else map_data[i]&=(unsigned char)~F_WAS_VISIBLE;
+        map_data[i]&=(unsigned char)~F_VISIBLE;
+    }
     MAP_AT(px,py)|=F_VISIBLE|F_EXPLORED;
     r=player_room();
     if(r!=255){
@@ -949,7 +966,14 @@ static void inv_remove(unsigned char idx){
 }
 
 static void do_redraw(void){
+    if(prev_px!=px||prev_py!=py) redraw_tile(prev_px,prev_py);
+    prev_px=px;prev_py=py;
     draw_viewport();draw_items_in_view();draw_monsters_in_view();draw_player();
+}
+
+static void do_redraw_full(void){
+    prev_px=px;prev_py=py;
+    draw_viewport_full();draw_items_in_view();draw_monsters_in_view();draw_player();
 }
 
 static void use_potion(unsigned char appearance) {
@@ -994,14 +1018,14 @@ static void use_scroll(unsigned char appearance) {
                     px=nx;py=ny; break;
                 }
             }
-            update_camera();compute_fov();do_redraw();
+            update_camera();compute_fov();do_redraw_full();
             fmt_reset();fmt_str("YOU VANISH AND REAPPEAR!"); break;
         case SEFF_MAGICMAP:
             for(j=0;j<(unsigned char)(MAP_W*MAP_H>>8);j++)
                 map_data[j]|=F_EXPLORED;
             { unsigned int ji;
               for(ji=0;ji<(unsigned int)(MAP_W*MAP_H);ji++) map_data[ji]|=F_EXPLORED; }
-            compute_fov();do_redraw();
+            compute_fov();do_redraw_full();
             fmt_reset();fmt_str("THE DUNGEON IS REVEALED!"); break;
         default: /* BLINK */
             { unsigned char range=3+(rand8()%3);
@@ -1012,7 +1036,7 @@ static void use_scroll(unsigned char appearance) {
                       px=nx;py=ny; break;
                   }
               }
-              update_camera();compute_fov();do_redraw();
+              update_camera();compute_fov();do_redraw_full();
             }
             fmt_reset();fmt_str("YOU BLINK AWAY!"); break;
     }
@@ -1113,7 +1137,7 @@ static void show_inventory(void) {
         }
     }
     /* Restore viewport */
-    do_redraw();
+    do_redraw_full();
 }
 
 /* Pick up item at player position */
@@ -1208,7 +1232,7 @@ static void help_screen(void) {
     draw_str(0,72,"A-H   DROP ITEM",7);
     draw_str(0,80,"ANY KEY TO CLOSE",8);
     while(!pollkey())waitvsync();
-    do_redraw();
+    do_redraw_full();
 }
 
 static void win_screen(void) {
@@ -1275,6 +1299,7 @@ static void enter_floor(void) {
     for(i=0;i<6144;i++)FRAMEBUFFER[i]=0;
     gen_map();spawn_monsters();spawn_items();
     update_camera();compute_fov();
+    prev_px=px;prev_py=py;
     draw_ui();draw_viewport();draw_items_in_view();
     draw_monsters_in_view();draw_player();
     draw_status_panel();draw_messages();
@@ -1392,8 +1417,11 @@ void main(void) {
                     compute_fov(); do_redraw(); acted=1;
                 } else {
                     px=nx;py=ny;
+                    { unsigned char oc=cam_x,od=cam_y;
                     update_camera();compute_fov();
-                    do_redraw();try_autopickup();
+                    if(cam_x!=oc||cam_y!=od) do_redraw_full();
+                    else do_redraw();
+                    }try_autopickup();
                     acted=1;
                 }
             }
