@@ -259,6 +259,9 @@ static unsigned char has_amulet;
 static unsigned char kills;
 static unsigned int  turn_count;
 static unsigned char depth_max;
+static unsigned char last_tgt_type;    /* last attacked monster type, 255=none */
+static unsigned char last_tgt_hp;
+static unsigned char last_tgt_maxhp;
 
 /* Message + format buffers */
 static unsigned char msg[2][MSG_CHARS + 1];
@@ -526,7 +529,15 @@ static void draw_status_panel(void) {
     stat_draw_line(6,14);
     fmt_reset(); fmt_str("AR:"); fmt_str((const char *)player_arm);
     stat_draw_line(7,7);
-    fmt_reset(); stat_draw_line(8,0);
+    /* Line 8: last attacked monster HP */
+    fmt_reset();
+    if(last_tgt_type<NUM_MON_TYPES){
+        unsigned char j;
+        const char *nm=mon_names[last_tgt_type];
+        for(j=0;j<5&&nm[j]&&fmt_len<5;j++) fmt_chr((unsigned char)nm[j]);
+        fmt_str(" HP:"); fmt_u8(last_tgt_hp); fmt_chr('/'); fmt_u8(last_tgt_maxhp);
+    }
+    stat_draw_line(8, (last_tgt_type<NUM_MON_TYPES&&last_tgt_hp>0)?9:8);
     fmt_reset(); stat_draw_line(9,0);
 }
 
@@ -636,6 +647,34 @@ static void gen_map(void) {
     }
     MAP_AT(room_cx[0],room_cy[0])=T_STAIR_U;
     if(num_rooms>1) MAP_AT(room_cx[num_rooms-1],room_cy[num_rooms-1])=T_STAIR_D;
+
+    /* Place doors at corridor choke points (25% chance each) */
+    { unsigned char x,y;
+      for(y=1;y<MAP_H-1;y++) for(x=1;x<MAP_W-1;x++) {
+        if(TILE_TYPE(MAP_AT(x,y))!=T_FLOOR) continue;
+        if(((TILE_TYPE(MAP_AT(x-1,y))==T_FLOOR&&TILE_TYPE(MAP_AT(x+1,y))==T_FLOOR&&
+             TILE_TYPE(MAP_AT(x,y-1))==T_WALL&&TILE_TYPE(MAP_AT(x,y+1))==T_WALL))
+        || ((TILE_TYPE(MAP_AT(x,y-1))==T_FLOOR&&TILE_TYPE(MAP_AT(x,y+1))==T_FLOOR&&
+             TILE_TYPE(MAP_AT(x-1,y))==T_WALL&&TILE_TYPE(MAP_AT(x+1,y))==T_WALL))) {
+            if((rand8()&3)==0) MAP_AT(x,y)=T_DOOR_C;
+        }
+    }}
+
+    /* Scatter water puddles in rooms on floor 3+ */
+    if(depth>=3) {
+        unsigned char i,ri,wx,wy,wc=2+(rand8()%3);
+        for(i=0;i<wc;i++) {
+            ri=rand8()%num_rooms;
+            wx=room_rx[ri]+rand8()%room_rw[ri];
+            wy=room_ry[ri]+rand8()%room_rh[ri];
+            if(TILE_TYPE(MAP_AT(wx,wy))==T_FLOOR) MAP_AT(wx,wy)=T_WATER;
+            /* adjacent tile too, makes a small puddle */
+            if(rand8()&1) wx++; else wy++;
+            if(wx<MAP_W-1&&wy<MAP_H-1&&TILE_TYPE(MAP_AT(wx,wy))==T_FLOOR)
+                MAP_AT(wx,wy)=T_WATER;
+        }
+    }
+
     px=room_cx[0]; py=room_cy[0];
 }
 
@@ -764,6 +803,7 @@ static void player_attack(unsigned char mi) {
         if(dmg>=monsters[mi].hp){
             kx=monsters[mi].x;ky=monsters[mi].y;
             player_xp+=mtype_xp[type]; kills++;
+            last_tgt_type=type; last_tgt_hp=0; last_tgt_maxhp=mtype_hp[type];
             monsters[mi].hp=0;monsters[mi].x=0;monsters[mi].y=0;
             redraw_tile(kx,ky);
             check_levelup();
@@ -771,6 +811,7 @@ static void player_attack(unsigned char mi) {
             add_message(fmt_buf); snd_kill();
         } else {
             monsters[mi].hp-=dmg;
+            last_tgt_type=type; last_tgt_hp=monsters[mi].hp; last_tgt_maxhp=mtype_hp[type];
             if(monsters[mi].hp<mtype_hp[type]/4+1&&monsters[mi].state!=2)
                 monsters[mi].state=2;
             fmt_reset();fmt_str("YOU HIT THE ");fmt_str(mon_names[type]);
@@ -811,6 +852,7 @@ static unsigned char mon_can_move(unsigned char mi,unsigned char nx,unsigned cha
     if(!nx||nx>=MAP_W-1||!ny||ny>=MAP_H-1)return 0;
     if(TILE_TYPE(MAP_AT(nx,ny))==T_WALL)return 0;
     if(TILE_TYPE(MAP_AT(nx,ny))==T_DOOR_C)return 0;
+    if(TILE_TYPE(MAP_AT(nx,ny))==T_WATER)return 0;
     if(nx==px&&ny==py)return 0;
     for(j=0;j<num_monsters;j++)
         if(j!=mi&&monsters[j].hp&&monsters[j].x==nx&&monsters[j].y==ny)return 0;
@@ -1129,6 +1171,7 @@ static void init_player(void) {
     equip_wpn_sub=0; equip_arm_sub=255;
     inv_count=0;
     has_amulet=0; kills=0; turn_count=0; depth_max=1;
+    last_tgt_type=255; last_tgt_hp=0; last_tgt_maxhp=0;
     for(j=0;j<4;j++) player_wpn[j]=(unsigned char)wpn_abbr[0][j];
     player_wpn[4]=0;
     player_arm[0]='N';player_arm[1]='O';player_arm[2]='N';player_arm[3]='E';player_arm[4]=0;
@@ -1304,12 +1347,19 @@ void main(void) {
             mi=monster_at(nx,ny);
             if(mi!=255){
                 player_attack(mi);acted=1;
-            } else if(TILE_TYPE(MAP_AT(nx,ny))!=T_WALL){
-                px=nx;py=ny;
-                update_camera();compute_fov();
-                do_redraw();
-                try_autopickup();
-                acted=1;
+            } else {
+                unsigned char ttype=TILE_TYPE(MAP_AT(nx,ny));
+                if(ttype==T_WALL||ttype==T_WATER) {} /* blocked */
+                else if(ttype==T_DOOR_C){
+                    MAP_AT(nx,ny)=T_DOOR_C+1; /* = T_DOOR_O */
+                    add_message((const unsigned char*)"YOU OPEN THE DOOR.");
+                    compute_fov(); do_redraw(); acted=1;
+                } else {
+                    px=nx;py=ny;
+                    update_camera();compute_fov();
+                    do_redraw();try_autopickup();
+                    acted=1;
+                }
             }
         }
 
