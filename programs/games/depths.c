@@ -589,10 +589,22 @@ static void compute_fov(void) {
             for(x=x1;x<=x2;x++)
                 MAP_AT(x,y)|=F_VISIBLE|F_EXPLORED;
     } else {
-        /* In a corridor: reveal adjacent tiles */
+        /* In a corridor: reveal 3x3 around player + trace cardinal directions */
         for(y=(py>0?py-1:0);y<=(py<MAP_H-1?py+1:py);y++)
             for(x=(px>0?px-1:0);x<=(px<MAP_W-1?px+1:px);x++)
                 MAP_AT(x,y)|=F_VISIBLE|F_EXPLORED;
+        /* Trace north */
+        for(y=py;y>0;y--){ MAP_AT(px,y)|=F_VISIBLE|F_EXPLORED;
+            if(TILE_TYPE(MAP_AT(px,y))==T_WALL)break;}
+        /* Trace south */
+        for(y=py;y<MAP_H-1;y++){ MAP_AT(px,y)|=F_VISIBLE|F_EXPLORED;
+            if(TILE_TYPE(MAP_AT(px,y))==T_WALL)break;}
+        /* Trace west */
+        for(x=px;x>0;x--){ MAP_AT(x,py)|=F_VISIBLE|F_EXPLORED;
+            if(TILE_TYPE(MAP_AT(x,py))==T_WALL)break;}
+        /* Trace east */
+        for(x=px;x<MAP_W-1;x++){ MAP_AT(x,py)|=F_VISIBLE|F_EXPLORED;
+            if(TILE_TYPE(MAP_AT(x,py))==T_WALL)break;}
     }
 }
 
