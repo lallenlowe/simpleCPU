@@ -39,6 +39,7 @@
 #define IC_POTION 3
 #define IC_SCROLL 4
 #define IC_GOLD   5
+#define IC_AMULET 6
 
 /* Potion effects */
 #define PEFF_HEAL    0
@@ -92,6 +93,7 @@ static const unsigned char PAT_MON_L[]   = { 0x0F, 0x0F, 0x0F, 0x06 };
 static const unsigned char PAT_MON_B[]   = { 0x0F, 0x0B, 0x0F, 0x0F };
 static const unsigned char PAT_ITEM[]    = { 0x00, 0x06, 0x06, 0x00 }; /* 2x2 center */
 static const unsigned char PAT_GOLD[]    = { 0x09, 0x00, 0x00, 0x09 }; /* 4 corners  */
+static const unsigned char PAT_AMULET[]  = { 0x06, 0x0F, 0x0F, 0x06 }; /* filled diamond */
 
 /* ================================================================== */
 /* Font (4x8, ASCII 32-90)                                            */
@@ -183,7 +185,7 @@ static const char *scr_labels[4]  = {"ZELOK","AVAR","MUNO","TIXI"};
 static const char *scr_eff_nm[4]  = {"IDENTIFY","TELEPORT","MAGIC MAP","BLINK"};
 
 static const unsigned char gold_amt[5] = {5,10,25,50,100};
-static const unsigned char item_col[6] = {0,14,7,13,11,11}; /* by category */
+static const unsigned char item_col[7] = {0,14,7,13,11,11,13}; /* by category; amulet=magenta */
 
 /* ================================================================== */
 /* Monster data tables                                                 */
@@ -253,6 +255,10 @@ static unsigned char scr_known[4];
 
 /* Sound */
 static unsigned char snd_frames;
+static unsigned char has_amulet;
+static unsigned char kills;
+static unsigned int  turn_count;
+static unsigned char depth_max;
 
 /* Message + format buffers */
 static unsigned char msg[2][MSG_CHARS + 1];
@@ -708,6 +714,14 @@ static void spawn_items(void) {
     count=3+(rand8()%4);
     for(i=0;i<count&&fi<MAX_FLOOR_ITEMS;i++)
         place_item(fi++,IC_GOLD,rand8()%5);
+    /* Floor 10: Amulet of Descent in the last room */
+    if(depth>=10&&fi<MAX_FLOOR_ITEMS&&num_rooms>0){
+        floor_items[fi].cat=IC_AMULET;
+        floor_items[fi].sub=0;
+        floor_items[fi].x=room_cx[num_rooms-1];
+        floor_items[fi].y=room_cy[num_rooms-1];
+        fi++;
+    }
 }
 
 static void init_identities(void) {
@@ -749,7 +763,7 @@ static void player_attack(unsigned char mi) {
         if(!dmg)dmg=1;
         if(dmg>=monsters[mi].hp){
             kx=monsters[mi].x;ky=monsters[mi].y;
-            player_xp+=mtype_xp[type];
+            player_xp+=mtype_xp[type]; kills++;
             monsters[mi].hp=0;monsters[mi].x=0;monsters[mi].y=0;
             redraw_tile(kx,ky);
             check_levelup();
@@ -1054,6 +1068,12 @@ static void pickup_item(void) {
     fi=item_at(px,py);
     if(fi==255){add_message((const unsigned char*)"NOTHING HERE.");return;}
     ox=floor_items[fi].x; oy=floor_items[fi].y;
+    if(floor_items[fi].cat==IC_AMULET){
+        has_amulet=1; floor_items[fi].cat=IC_NONE;
+        redraw_tile(ox,oy);
+        add_message((const unsigned char*)"YOU GRASP THE AMULET OF DESCENT! ESCAPE!");
+        return;
+    }
     if(floor_items[fi].cat==IC_GOLD){
         amt=gold_amt[floor_items[fi].sub];
         player_gold+=amt; floor_items[fi].cat=IC_NONE;
@@ -1087,39 +1107,105 @@ static void drop_item(unsigned char idx) {
     add_message(fmt_buf);
 }
 
-/* Auto-pick up gold when stepping on it */
+/* Auto-pick up gold and amulet when stepping on them */
 static void try_autopickup(void) {
     unsigned char fi=item_at(px,py);
-    if(fi==255||floor_items[fi].cat!=IC_GOLD)return;
-    pickup_item(); /* reuse pickup_item which handles gold */
+    if(fi==255)return;
+    if(floor_items[fi].cat==IC_GOLD||floor_items[fi].cat==IC_AMULET) pickup_item();
 }
 
 /* ================================================================== */
 /* Game over / new game                                                */
 /* ================================================================== */
 
-static void enter_floor(void);  /* forward declaration */
+static void enter_floor(void);   /* forward declaration */
+static void win_screen(void);    /* forward declaration */
 
 static void init_player(void) {
     unsigned char j;
     player_hp=20;player_maxhp=20;
     player_str=4;player_dex=4;player_def=0;
     player_level=1;player_xp=0;player_gold=0;pending_levelup=0;
-    equip_wpn_sub=0; equip_arm_sub=255;  /* start with dagger equipped */
+    equip_wpn_sub=0; equip_arm_sub=255;
     inv_count=0;
+    has_amulet=0; kills=0; turn_count=0; depth_max=1;
     for(j=0;j<4;j++) player_wpn[j]=(unsigned char)wpn_abbr[0][j];
     player_wpn[4]=0;
     player_arm[0]='N';player_arm[1]='O';player_arm[2]='N';player_arm[3]='E';player_arm[4]=0;
 }
 
+/* Clear the map area (80x80px) to black */
+static void clear_map_area(void) {
+    unsigned char r,c;
+    for(r=0;r<80;r++){unsigned int b=(unsigned int)r<<6;for(c=0;c<40;c++)FRAMEBUFFER[b+c]=0;}
+}
+
+static void help_screen(void) {
+    clear_map_area();
+    draw_str(0, 0,"DEPTHS - KEYS",15);
+    draw_str(0,16,"WASD  MOVE / ATTACK",7);
+    draw_str(0,24,">     DESCEND STAIRS",7);
+    draw_str(0,32,"<     ASCEND (NEED AMULET)",7);
+    draw_str(0,40,"G     PICK UP ITEM",7);
+    draw_str(0,48,"I     INVENTORY",7);
+    draw_str(0,56,"a-h   USE OR EQUIP ITEM",7);
+    draw_str(0,64,"A-H   DROP ITEM",7);
+    draw_str(0,72,"ANY KEY TO CLOSE",8);
+    while(!pollkey())waitvsync();
+    do_redraw();
+}
+
+static void win_screen(void) {
+    unsigned int score;
+    score=player_gold+(unsigned int)kills*50+(unsigned int)depth_max*100+5000;
+    clear_map_area();
+    draw_str(0, 0,"YOU ESCAPED THE DEPTHS!",10);
+    draw_str(0, 8,"THE AMULET IS YOURS!",14);
+    fmt_reset();fmt_str("FLOOR REACHED: ");fmt_u8(depth_max);
+    draw_str(0,24,(const char*)fmt_buf,15);
+    fmt_reset();fmt_str("GOLD: ");fmt_u16(player_gold);
+    draw_str(0,32,(const char*)fmt_buf,11);
+    fmt_reset();fmt_str("MONSTERS SLAIN: ");fmt_u8(kills);
+    draw_str(0,40,(const char*)fmt_buf,15);
+    fmt_reset();fmt_str("TURNS: ");fmt_u16(turn_count);
+    draw_str(0,48,(const char*)fmt_buf,15);
+    fmt_reset();fmt_str("FINAL SCORE: ");fmt_u16(score);
+    draw_str(0,56,(const char*)fmt_buf,11);
+    draw_str(0,72,"PRESS ANY KEY",8);
+    CH1_FREQ_LO=250;CH1_FREQ_HI=0;CH1_WAVEFORM=WAVE_TRIANGLE;CH1_VOLUME=15;
+    while(!pollkey())waitvsync();
+    CH1_VOLUME=0;
+    init_player();depth=1;rng+=(unsigned int)0x1234;
+    { unsigned char i;
+      for(i=0;i<MSG_CHARS;i++){msg[0][i]=' ';msg[1][i]=' ';}
+      msg[0][MSG_CHARS]=msg[1][MSG_CHARS]=0; }
+    init_identities();
+    enter_floor();
+    add_message((const unsigned char*)"ANOTHER ADVENTURE BEGINS...");
+}
+
 static void game_over(void) {
-    unsigned char i;
-    add_message((const unsigned char*)"YOU HAVE DIED. ANY KEY TO RESTART.");
+    unsigned int score;
+    score=player_gold+(unsigned int)kills*50+(unsigned int)depth_max*100;
+    clear_map_area();
+    draw_str(0, 0,"YOU ARE DEAD.",9);
+    draw_str(0,16,(const char*)msg[0],7);   /* last message = cause of death */
+    fmt_reset();fmt_str("FLOOR REACHED: ");fmt_u8(depth_max);
+    draw_str(0,32,(const char*)fmt_buf,15);
+    fmt_reset();fmt_str("GOLD: ");fmt_u16(player_gold);
+    draw_str(0,40,(const char*)fmt_buf,11);
+    fmt_reset();fmt_str("MONSTERS SLAIN: ");fmt_u8(kills);
+    draw_str(0,48,(const char*)fmt_buf,15);
+    fmt_reset();fmt_str("SCORE: ");fmt_u16(score);
+    draw_str(0,56,(const char*)fmt_buf,11);
+    draw_str(0,72,"PRESS ANY KEY",8);
     draw_messages();
     while(!pollkey())waitvsync();
     init_player();depth=1;rng+=(unsigned int)0x4321;
-    for(i=0;i<MSG_CHARS;i++){msg[0][i]=' ';msg[1][i]=' ';}
-    msg[0][MSG_CHARS]=msg[1][MSG_CHARS]=0;
+    { unsigned char i;
+      for(i=0;i<MSG_CHARS;i++){msg[0][i]=' ';msg[1][i]=' ';}
+      msg[0][MSG_CHARS]=msg[1][MSG_CHARS]=0; }
+    init_identities();
     enter_floor();
     add_message((const unsigned char*)"DEPTHS AWAITS. GOOD LUCK.");
 }
@@ -1154,7 +1240,7 @@ void main(void) {
     init_identities();
 
     enter_floor();
-    add_message((const unsigned char*)"WELCOME TO DEPTHS. WASD MOVE > DESCEND G PICKUP I INV");
+    add_message((const unsigned char*)"WELCOME TO DEPTHS. WASD MOVE > DESCEND ? HELP");
 
     while(1){
         waitvsync();
@@ -1169,18 +1255,38 @@ void main(void) {
             draw_status_panel();continue;
         }
 
-        /* Stairs */
+        /* Stairs down */
         if(k=='>'){
             if(TILE_TYPE(MAP_AT(px,py))==T_STAIR_D){
                 depth++;rng^=(unsigned int)depth<<5;
+                if(depth>depth_max)depth_max=depth;
                 enter_floor();
                 add_message((const unsigned char*)"YOU DESCEND DEEPER INTO THE DARK.");
             }
             continue;
         }
 
+        /* Stairs up */
+        if(k=='<'){
+            if(TILE_TYPE(MAP_AT(px,py))==T_STAIR_U){
+                if(!has_amulet){
+                    add_message((const unsigned char*)"THE WAY IS SEALED. FIND THE AMULET.");
+                } else if(depth<=1){
+                    win_screen();
+                } else {
+                    depth--;rng^=(unsigned int)depth<<3;
+                    enter_floor();
+                    add_message((const unsigned char*)"YOU ASCEND. THE DARK FOLLOWS.");
+                }
+            }
+            continue;
+        }
+
         /* Inventory */
         if(k=='i'||k=='I'){show_inventory();continue;}
+
+        /* Help */
+        if(k=='?'){help_screen();continue;}
 
         /* Pickup */
         if(k=='g'||k=='G'){pickup_item();acted=1;}
@@ -1208,6 +1314,7 @@ void main(void) {
         }
 
         if(acted){
+            turn_count++;
             monsters_turn();
             if(!player_hp)game_over();
         }
